@@ -1,9 +1,10 @@
+use egui::{FontFamily, FontId, TextStyle, TextureHandle};
 use serde::{Deserialize, Serialize};
-use crate::pages::types::PageType;
+
+use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::capture::capture_page;
-use egui::{FontFamily, FontId, TextStyle};
+use crate::pages::types::PageType;
 
 #[derive(Deserialize, Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -11,6 +12,9 @@ pub struct ScreenGrabber {
     config: bool,
     //it should be an entire config loaded at start of the app
     current_page: PageType,
+    //image captured
+    #[serde(skip)]
+    pub captured_image: Option<TextureHandle>,
 }
 
 impl Default for ScreenGrabber {
@@ -18,6 +22,7 @@ impl Default for ScreenGrabber {
         Self {
             config: false,
             current_page: PageType::Launcher,
+            captured_image: None,
         }
     }
 }
@@ -32,13 +37,19 @@ impl ScreenGrabber {
         set_font_style(&cc.egui_ctx);
 
         if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            return eframe::get_value(storage, "screen_grabber").unwrap_or_default();
         }
 
         Default::default()
     }
     pub fn set_page(&mut self, page: PageType) {
         self.current_page = page
+    }
+    #[inline]
+    pub fn has_captured_image(&self) -> bool { self.captured_image.is_some() }
+
+    pub fn set_new_captured_image(&mut self, image: TextureHandle) {
+        self.captured_image = Some(image)
     }
 }
 

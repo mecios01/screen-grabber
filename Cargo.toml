@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = { version = "0.23.0", features = ["persistence"] }
+eframe = { version = "0.23.0", features = ["persistence", "wgpu"] }
 egui = "0.23.0"
+screenshots = "0.8.4"
 serde = { version = "1.0.188", features = ["derive"] }
