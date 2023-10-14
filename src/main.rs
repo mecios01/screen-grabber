@@ -4,7 +4,7 @@ pub mod types;
 pub mod pages;
 
 fn main() -> eframe::Result<()> {
-    let mut native_options = eframe::NativeOptions {
+    let native_options = eframe::NativeOptions {
         decorated: true,
         transparent: true,
         mouse_passthrough: false, // Changing this to true makes window fully invisible
