@@ -14,7 +14,6 @@ pub const APP_KEY: &str = "screen-grabber";
 #[derive(Deserialize, Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct ScreenGrabber {
-    config: bool,
     //it should be an entire config loaded at start of the app
     current_page: PageType,
     //image captured
@@ -27,7 +26,6 @@ pub struct ScreenGrabber {
 impl Default for ScreenGrabber {
     fn default() -> Self {
         Self {
-            config: false,
             current_page: PageType::Launcher,
             captured_image: None,
             is_minimized: false,
@@ -47,7 +45,6 @@ impl ScreenGrabber {
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, APP_KEY).unwrap_or_default();
         }
-
         Default::default()
     }
     pub fn set_page(&mut self, page: PageType) {

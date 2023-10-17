@@ -1,11 +1,9 @@
-use egui::Align::Center;
-use egui::Direction::LeftToRight;
-use egui::ImageData::Color;
-use egui::{Color32, FontId, Layout};
+use egui::{Color32, FontId};
 use egui::panel::{Side, TopBottomSide};
-use egui::WidgetText::RichText;
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
+
+//thinking to use figment to manage configuration
 
 pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     _frame.set_decorations(true);
