@@ -6,3 +6,10 @@ pub enum PageType {
     Capture,
     Settings,
 }
+
+pub enum SettingSection {
+    General,
+    Keybindings,
+    Appearance,
+    About,
+}

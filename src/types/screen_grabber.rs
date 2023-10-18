@@ -1,13 +1,13 @@
 use std::thread;
 
-use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions};
+use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Visuals};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::types::PageType;
+use crate::pages::types::{PageType, SettingSection};
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -19,8 +19,13 @@ pub struct ScreenGrabber {
     //image captured
     #[serde(skip)]
     pub captured_image: Option<TextureHandle>,
-
     pub is_minimized: bool,
+
+    //settings
+    #[serde(skip)]
+    pub active_section: SettingSection,
+    pub start_minimized: bool,
+    pub theme: Visuals,
 }
 
 impl Default for ScreenGrabber {
@@ -29,6 +34,10 @@ impl Default for ScreenGrabber {
             current_page: PageType::Launcher,
             captured_image: None,
             is_minimized: false,
+            //settings
+            active_section: SettingSection::General,
+            start_minimized: false,
+            theme: Visuals::dark()
         }
     }
 }
@@ -37,6 +46,7 @@ impl ScreenGrabber {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+        cc.egui_ctx.set_visuals(Visuals::dark());
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
@@ -67,6 +77,9 @@ impl ScreenGrabber {
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
         self.captured_image = Some(id)
     }
+
+    ///settings (to understand if this is the right place for setters of settings)
+    pub fn set_active_section(&mut self, session: SettingSection) { self.active_section = session }
 }
 
 impl eframe::App for ScreenGrabber {
