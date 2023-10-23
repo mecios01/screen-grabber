@@ -19,8 +19,10 @@ pub struct ScreenGrabber {
     current_page: PageType,
     //image captured
     #[serde(skip)]
-    pub captured_image: Option<TextureHandle>,
+    pub texture_image: Option<TextureHandle>,
 
+    #[serde(skip)]
+    pub captured_image: Option<ColorImage>,
     pub is_minimized: bool,
 }
 
@@ -29,8 +31,9 @@ impl Default for ScreenGrabber {
         Self {
             config: false,
             current_page: PageType::Launcher,
-            captured_image: None,
             is_minimized: false,
+            texture_image: None,
+            captured_image: None,
         }
     }
 }
@@ -54,10 +57,12 @@ impl ScreenGrabber {
         self.current_page = page
     }
     #[inline]
-    pub fn has_captured_image(&self) -> bool { self.captured_image.is_some() }
+    pub fn has_captured_image(&self) -> bool {
+        self.texture_image.is_some()
+    }
 
     pub fn set_new_captured_image(&mut self, image: TextureHandle) {
-        self.captured_image = Some(image);
+        self.texture_image = Some(image);
         self.is_minimized = false;
     }
     pub fn capture(&mut self, ctx: &egui::Context) {
@@ -66,18 +71,21 @@ impl ScreenGrabber {
             let size = [screenshot.width() as _, screenshot.height() as _];
             let pixels = screenshot.as_flat_samples();
             ColorImage::from_rgba_unmultiplied(size, pixels.as_slice())
-        }).join().unwrap();
+        })
+        .join()
+        .unwrap();
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
-        self.captured_image = Some(id)
+        self.texture_image = Some(id);
+        self.captured_image = Some(image);
     }
 }
 
 impl eframe::App for ScreenGrabber {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         match self.current_page {
-            PageType::Launcher => { launcher_page(self, ctx, frame) }
-            PageType::Capture => { capture_page(self, ctx, frame) }
-            PageType::Settings => { settings_page(self, ctx, frame) }
+            PageType::Launcher => launcher_page(self, ctx, frame),
+            PageType::Capture => capture_page(self, ctx, frame),
+            PageType::Settings => settings_page(self, ctx, frame),
         }
     }
 
@@ -96,8 +104,7 @@ fn set_font_style(ctx: &egui::Context) {
         (TextStyle::Monospace, FontId::new(16.0, Monospace)),
         (TextStyle::Button, FontId::new(22.0, Proportional)),
         (TextStyle::Small, FontId::new(12.0, Proportional)),
-    ].into();
+    ]
+    .into();
     ctx.set_style(style);
 }
-
-
