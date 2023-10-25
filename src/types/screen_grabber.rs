@@ -1,6 +1,6 @@
 use std::thread;
 
-use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions};
+use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Vec2};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +8,7 @@ use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
 use crate::pages::types::PageType;
+use crate::types::editor::Editor;
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -24,6 +25,8 @@ pub struct ScreenGrabber {
     #[serde(skip)]
     pub captured_image: Option<ColorImage>,
     pub is_minimized: bool,
+    #[serde(skip)]
+    pub editor: Editor,
 }
 
 impl Default for ScreenGrabber {
@@ -34,6 +37,7 @@ impl Default for ScreenGrabber {
             is_minimized: false,
             texture_image: None,
             captured_image: None,
+            editor: Editor::default(),
         }
     }
 }
@@ -61,6 +65,12 @@ impl ScreenGrabber {
         self.texture_image.is_some()
     }
 
+    pub fn get_original_size(&self) -> Vec2 {
+        if let Some(image) = &self.texture_image {
+            return image.size_vec2();
+        }
+        Vec2::ZERO
+    }
     pub fn set_new_captured_image(&mut self, image: TextureHandle) {
         self.texture_image = Some(image);
         self.is_minimized = false;
