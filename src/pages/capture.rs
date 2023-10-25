@@ -1,4 +1,4 @@
-use eframe::emath::Align;
+use eframe::emath::{Align, Rect, RectTransform};
 use egui::epaint::CircleShape;
 use egui::{epaint, Color32, Layout, Pos2, Stroke, Widget};
 use eframe::emath::{Rect, RectTransform};
@@ -21,14 +21,23 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
         }
+        egui::SidePanel::left("left-panel-toolbox")
+            .exact_width(40f32)
+            .show_inside(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.button("--").clicked();
+                    ui.button("[]").clicked();
+                    ui.button("**").clicked();
+                    ui.button("O").clicked();
+                    ui.button("_").clicked();
+                })
+            });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                //println!("{:?}", ui.available_size());
                 let original_rect = Rect::from_min_size(
                     Pos2::ZERO,
-                    (app.texture_image.clone().unwrap().size_vec2()));
-
-
+                    (app.texture_image.clone().unwrap().size_vec2()),
+                );
                 let res = egui::Image::new(&app.texture_image.clone().unwrap())
                     .max_size(ui.available_size())
                     .maintain_aspect_ratio(true)
@@ -59,7 +68,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 ));
                 painter.add(line);
                 painter.add(circle);
-                
+
             });
         }
     });
