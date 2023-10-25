@@ -24,7 +24,9 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
                 //println!("{:?}", ui.available_size());
-                let original_rect = Rect::from_min_size(Pos2::ZERO, (app.texture_image.clone().unwrap().size_vec2()));
+                let original_rect = Rect::from_min_size(
+                    Pos2::ZERO,
+                    (app.texture_image.clone().unwrap().size_vec2()));
 
 
                 let res = egui::Image::new(&app.texture_image.clone().unwrap())
@@ -34,7 +36,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                     .ui(ui);
 
                 let to_screen = emath::RectTransform::from_to(original_rect, res.rect);
-                let scale = res.rect.size().x / app.captured_image.clone().unwrap().size[0] as f32;
+                let scale = res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
                 //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), res.layer_id, res.rect);
                 let (x, y) = (res.rect.width(), res.rect.height());
