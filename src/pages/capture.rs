@@ -1,7 +1,7 @@
 use eframe::emath::Align;
 use egui::epaint::CircleShape;
 use egui::{epaint, Color32, Layout, Pos2, Stroke, Widget};
-use emath::Rect;
+use eframe::emath::{Rect, RectTransform};
 
 
 use crate::pages::types::PageType;
@@ -35,7 +35,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                     // .shrink_to_fit()
                     .ui(ui);
 
-                let to_screen = emath::RectTransform::from_to(original_rect, res.rect);
+                let to_screen = RectTransform::from_to(original_rect, res.rect);
                 let scale = res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
                 //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), res.layer_id, res.rect);
