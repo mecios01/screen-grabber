@@ -2,6 +2,8 @@ use types::screen_grabber::ScreenGrabber;
 
 pub mod pages;
 pub mod types;
+pub mod utils;
+
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         decorated: true,
