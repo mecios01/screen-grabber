@@ -1,6 +1,6 @@
 use std::thread;
 
-use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Vec2};
+use egui::{ColorImage, TextureHandle, TextureOptions, Vec2};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
@@ -105,16 +105,16 @@ impl eframe::App for ScreenGrabber {
 }
 
 fn set_font_style(ctx: &egui::Context) {
-    use FontFamily::{Monospace, Proportional};
-
-    let mut style = (*ctx.style()).clone();
-    style.text_styles = [
-        (TextStyle::Heading, FontId::new(25.0, Proportional)),
-        (TextStyle::Body, FontId::new(16.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
-        (TextStyle::Button, FontId::new(22.0, Proportional)),
-        (TextStyle::Small, FontId::new(12.0, Proportional)),
-    ]
-    .into();
-    ctx.set_style(style);
+    // use FontFamily::{Monospace, Proportional};
+    //
+    // let mut style = (*ctx.style()).clone();
+    // style.text_styles = [
+    //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
+    //     (TextStyle::Body, FontId::new(16.0, Proportional)),
+    //     (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+    //     (TextStyle::Button, FontId::new(22.0, Proportional)),
+    //     (TextStyle::Small, FontId::new(12.0, Proportional)),
+    // ]
+    // .into();
+    // ctx.set_style(style);
 }

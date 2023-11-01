@@ -6,7 +6,7 @@ use crate::types::annotation::Annotation;
 use crate::types::screen_grabber::ScreenGrabber;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    // epaint::TessellationOptions::default().debug_paint_clip_rects = false;
+    // ctx.tessellation_options_mut(|ts| ts.debug_paint_clip_rects = false);
     if app.texture_image.is_none() {
         _frame.set_minimized(true);
         _frame.set_always_on_top(false);
@@ -19,11 +19,14 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
         }
-        egui::SidePanel::left("left-panel-toolbox").show_inside(ui, |ui| {
-            ui.vertical_centered_justified(|ui| {
-                app.editor.show_tool_buttons(ui);
-            })
-        });
+        egui::SidePanel::left("left-panel-toolbox")
+            .resizable(false)
+            .max_width(22f32)
+            .show_inside(ui, |ui| {
+                ui.vertical_centered(|ui| {
+                    app.editor.show_tool_buttons(ui);
+                })
+            });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
                 let image_res = egui::Image::new(&app.texture_image.clone().unwrap())

@@ -1,5 +1,8 @@
+use std::default::Default;
+
 use eframe::emath::RectTransform;
-use egui::{Image, Rounding, Sense, Shape, Stroke, Ui};
+use egui::color_picker::Alpha;
+use egui::{Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -26,6 +29,7 @@ pub struct Editor {
     pub mode: Mode,
     pub cur_annotation: Option<Annotation>,
     pub annotations: Vec<Annotation>,
+    pub current_color: Rgba,
     // captured_image
 }
 
@@ -35,6 +39,7 @@ impl Default for Editor {
             mode: Mode::Idle,
             cur_annotation: None,
             annotations: Vec::new(),
+            current_color: Rgba::RED,
         }
     }
 }
@@ -159,5 +164,7 @@ impl Editor {
         self.tool_button(ui, &RECTANGLE_SVG, Mode::DrawRect);
         self.tool_button(ui, &SELECT_SVG, Mode::Select);
         self.tool_button(ui, &TEXT_SVG, Mode::InsertText);
+        let alpha: Alpha = Alpha::BlendOrAdditive;
+        egui::color_picker::color_edit_button_rgba(ui, &mut self.current_color, alpha);
     }
 }
