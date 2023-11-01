@@ -104,7 +104,10 @@ impl eframe::App for ScreenGrabber {
     }
 }
 
-fn set_font_style(ctx: &egui::Context) {
+fn set_font_style(_ctx: &egui::Context) {
+    //Defaults are pretty good but in case we want to change them or allow the user to do so this
+    // is the way to do it (at least one possible way)
+
     // use FontFamily::{Monospace, Proportional};
     //
     // let mut style = (*ctx.style()).clone();

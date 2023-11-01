@@ -1,5 +1,5 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Layout, Pos2, Sense, Shape, Widget};
+use egui::{Layout, Pos2, Shape, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
@@ -14,7 +14,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
     if !app.has_captured_image() {
         app.capture(ctx);
     }
-    egui::CentralPanel::default().show(ctx, |mut ui| {
+    egui::CentralPanel::default().show(ctx, |ui| {
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
         }
@@ -33,15 +33,13 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                     .maintain_aspect_ratio(true)
                     .ui(ui);
 
-                let original_rect = Rect::from_min_size(
-                    Pos2::ZERO,
-                    (app.texture_image.clone().unwrap().size_vec2()),
-                );
+                let original_rect =
+                    Rect::from_min_size(Pos2::ZERO, app.texture_image.clone().unwrap().size_vec2());
                 let to_screen = RectTransform::from_to(original_rect, image_res.rect);
                 let scaling = to_screen.scale()[0]; //res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
                                                     //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
-                let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
+                // let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
                 //manage_input(app, input_res, to_screen.inverse());
                 app.editor.manage_input(ui, to_screen.inverse());
 
@@ -53,10 +51,10 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                     .collect();
                 painter.extend(shapes);
 
-                if app.editor.cur_annotation.is_some() {
+                if app.editor.current_annotation.is_some() {
                     painter.add(
                         app.editor
-                            .cur_annotation
+                            .current_annotation
                             .as_mut()
                             .unwrap()
                             .render(scaling, to_screen),
