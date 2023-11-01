@@ -41,7 +41,6 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 let scaling = to_screen.scale()[0]; //res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
                                                     //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
-
                 let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
                 //manage_input(app, input_res, to_screen.inverse());
                 app.editor.manage_input(ui, to_screen.inverse());

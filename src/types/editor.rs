@@ -55,7 +55,7 @@ impl Editor {
             Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
-            Mode::Erase => {}
+            Mode::Erase => self.manage_arrow(ui, to_original),
             Mode::InsertText => {}
             Mode::Select => {}
             Mode::Move => {}
@@ -122,7 +122,29 @@ impl Editor {
             return;
         }
         if let Annotation::Rect(ref mut r) = self.cur_annotation.as_mut().unwrap() {
-            r.update_max(pos);
+            r.update_p2(pos);
+        }
+    }
+
+    fn manage_arrow(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.cur_annotation = Some(Annotation::arrow(pos, Color32::from(self.current_color)));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations.push(self.cur_annotation.clone().unwrap());
+            self.cur_annotation = None;
+            return;
+        }
+
+        if let Annotation::Arrow(ref mut a) = self.cur_annotation.as_mut().unwrap() {
+            a.update_ending(pos);
         }
     }
 
