@@ -41,7 +41,8 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
 
                 let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
-                manage_input(app, input_res, to_screen.inverse());
+                //manage_input(app, input_res, to_screen.inverse());
+                app.editor.manage_input(ui, to_screen.inverse());
                 if app.editor.cur_annotation.is_some() {
                     painter.add(
                         app.editor
@@ -62,27 +63,4 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             });
         }
     });
-}
-
-fn manage_input(app: &mut ScreenGrabber, input_response: Response, to_orginal: RectTransform) {
-    if input_response.drag_started() {
-        app.editor.cur_annotation = Some(Annotation::segment(
-            to_orginal.transform_pos_clamped(input_response.interact_pointer_pos().unwrap()),
-        ));
-        return;
-    }
-    if input_response.drag_released() {
-        //TODO
-        app.editor
-            .annotations
-            .push(app.editor.cur_annotation.clone().unwrap());
-        app.editor.cur_annotation = None;
-        return;
-    }
-    if app.editor.cur_annotation.is_some() {
-        app.editor.cur_annotation.as_mut().unwrap().update(
-            to_orginal.transform_pos_clamped(input_response.interact_pointer_pos().unwrap()),
-        );
-        return;
-    }
 }

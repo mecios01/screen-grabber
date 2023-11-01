@@ -44,7 +44,83 @@ impl Editor {
         todo!();
     }
 
-    fn manage_input(app: &mut ScreenGrabber, ui: &mut Ui, to_original: RectTransform) {}
+    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        match self.mode {
+            Mode::Idle => {}
+            Mode::DrawLine => self.manage_segment(ui, to_original),
+            Mode::DrawRect => self.manage_rect(ui, to_original),
+            Mode::DrawCircle => self.manage_circle(ui, to_original),
+            Mode::DrawEllipse => {}
+            Mode::Erase => {}
+            Mode::InsertText => {}
+            Mode::Select => {}
+            Mode::Move => {}
+        }
+    }
+
+    fn manage_segment(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.cur_annotation = Some(Annotation::segment(pos));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations.push(self.cur_annotation.clone().unwrap());
+            self.cur_annotation = None;
+            return;
+        }
+
+        if let Annotation::Segment(ref mut s) = self.cur_annotation.as_mut().unwrap() {
+            s.update_ending(pos);
+        }
+    }
+
+    fn manage_circle(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.cur_annotation = Some(Annotation::circle(pos));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations.push(self.cur_annotation.clone().unwrap());
+            self.cur_annotation = None;
+            return;
+        }
+        if let Annotation::Circle(ref mut c) = self.cur_annotation.as_mut().unwrap() {
+            c.update_radius(pos);
+        }
+    }
+
+    fn manage_rect(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.cur_annotation = Some(Annotation::rect(pos));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations.push(self.cur_annotation.clone().unwrap());
+            self.cur_annotation = None;
+            return;
+        }
+        if let Annotation::Rect(ref mut r) = self.cur_annotation.as_mut().unwrap() {
+            r.update_max(pos);
+        }
+    }
 
     pub fn tool_button(&mut self, ui: &mut Ui, image: &Image<'_>, mode: Mode) -> egui::Response {
         let size_points = egui::Vec2::splat(24.0);
@@ -76,7 +152,7 @@ impl Editor {
     }
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
         self.tool_button(ui, &CURSOR_SVG, Mode::Idle);
-        self.tool_button(ui, &ELLIPSE_SVG, Mode::DrawEllipse);
+        self.tool_button(ui, &ELLIPSE_SVG, Mode::DrawCircle);
         self.tool_button(ui, &ERASER_SVG, Mode::Erase);
         self.tool_button(ui, &LINE_SVG, Mode::DrawLine);
         self.tool_button(ui, &MOVE_SVG, Mode::Move);
