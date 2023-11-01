@@ -26,7 +26,7 @@ pub enum Mode {
 
 pub struct Editor {
     pub mode: Mode,
-    pub cur_annotation: Option<Annotation>,
+    pub current_annotation: Option<Annotation>,
     pub annotations: Vec<Annotation>,
     pub current_color: Rgba,
     // captured_image
@@ -36,7 +36,7 @@ impl Default for Editor {
     fn default() -> Self {
         Self {
             mode: Mode::Idle,
-            cur_annotation: None,
+            current_annotation: None,
             annotations: Vec::new(),
             current_color: Rgba::RED,
         }
@@ -44,10 +44,6 @@ impl Default for Editor {
 }
 
 impl Editor {
-    fn new() -> Self {
-        todo!();
-    }
-
     pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
         match self.mode {
             Mode::Idle => {}
@@ -70,16 +66,18 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::segment(pos, Color32::from(self.current_color)));
+            self.current_annotation =
+                Some(Annotation::segment(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
-            self.annotations.push(self.cur_annotation.clone().unwrap());
-            self.cur_annotation = None;
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
             return;
         }
 
-        if let Annotation::Segment(ref mut s) = self.cur_annotation.as_mut().unwrap() {
+        if let Annotation::Segment(ref mut s) = self.current_annotation.as_mut().unwrap() {
             s.update_ending(pos);
         }
     }
@@ -92,15 +90,17 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::circle(pos, Color32::from(self.current_color)));
+            self.current_annotation =
+                Some(Annotation::circle(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
-            self.annotations.push(self.cur_annotation.clone().unwrap());
-            self.cur_annotation = None;
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
             return;
         }
-        if let Annotation::Circle(ref mut c) = self.cur_annotation.as_mut().unwrap() {
+        if let Annotation::Circle(ref mut c) = self.current_annotation.as_mut().unwrap() {
             c.update_radius(pos);
         }
     }
@@ -113,15 +113,17 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::rect(pos, Color32::from(self.current_color)));
+            self.current_annotation =
+                Some(Annotation::rect(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
-            self.annotations.push(self.cur_annotation.clone().unwrap());
-            self.cur_annotation = None;
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
             return;
         }
-        if let Annotation::Rect(ref mut r) = self.cur_annotation.as_mut().unwrap() {
+        if let Annotation::Rect(ref mut r) = self.current_annotation.as_mut().unwrap() {
             r.update_p2(pos);
         }
     }
@@ -134,16 +136,18 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::arrow(pos, Color32::from(self.current_color)));
+            self.current_annotation =
+                Some(Annotation::arrow(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
-            self.annotations.push(self.cur_annotation.clone().unwrap());
-            self.cur_annotation = None;
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
             return;
         }
 
-        if let Annotation::Arrow(ref mut a) = self.cur_annotation.as_mut().unwrap() {
+        if let Annotation::Arrow(ref mut a) = self.current_annotation.as_mut().unwrap() {
             a.update_ending(pos);
         }
     }
