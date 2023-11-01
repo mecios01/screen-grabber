@@ -1,15 +1,21 @@
-use egui::Shape;
+use eframe::emath::RectTransform;
+use egui::{Shape, Ui};
+use crate::types::screen_grabber::ScreenGrabber;
 use crate::utils::input::Annotation;
 
 pub enum StackAction {
     AddShape(Shape), //NO TEXT SHAPES HERE (THEY NEED TO BE HANDLED DIFFERENTLY)
 }
 
+pub enum Mode{
+    Idle,
+    DrawSegment,
+    DrawCircle,
+}
+
 pub struct Editor {
-    //execution stack (the list of operations performed on the original image)
-    //is_interacting (is the user dragging/selecting/adding something)
-    pub execution_stack: Option<Vec<StackAction>>,
-    pub segment: Option<Annotation>,
+    pub mode: Mode,
+    pub cur_annotation: Option<Annotation>,
     pub annotations: Vec<Annotation>,
     // captured_image
 }
@@ -17,8 +23,8 @@ pub struct Editor {
 impl Default for Editor {
     fn default() -> Self {
         Self {
-            execution_stack: None,
-            segment : None,
+            mode: Mode::Idle,
+            cur_annotation: None,
             annotations: Vec::new(),
         }
     }
@@ -27,8 +33,8 @@ impl Default for Editor {
 impl Editor {
     fn new() -> Self {
         todo!();
-        Self {
-            ..Default::default()
-        }
+    }
+
+    fn manage_input(app: &mut ScreenGrabber, ui: &mut Ui, to_original: RectTransform){
     }
 }

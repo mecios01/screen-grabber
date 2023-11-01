@@ -1,13 +1,17 @@
-use eframe::emath::{Pos2, RectTransform, Vec2};
-use egui::{Color32, Shape, Stroke};
+use eframe::emath::{Pos2, RectTransform};
+use egui::{Color32, Response, Shape, Stroke};
+use crate::types::screen_grabber::ScreenGrabber;
 
 #[derive(Debug, Clone)]
 pub enum Annotation {
-    Segment(SegmentAnnotation)
+    Segment(SegmentAnnotation),
 }
 
 
 impl Annotation {
+    pub fn manage_annotation(app: &mut ScreenGrabber, input_response: Response, to_original: RectTransform){
+
+    }
     pub fn segment(starting: Pos2) -> Self {
         Self::Segment(SegmentAnnotation::new(starting))
     }
@@ -50,6 +54,6 @@ impl SegmentAnnotation {
             vec![
                 rect_transform.transform_pos(self.starting_pos),
                 rect_transform.transform_pos(self.ending_pos)],
-            Stroke::new(10.0 * scaling, Color32::RED))
+            Stroke::new(10.0 * scaling, Color32::from_rgba_premultiplied(255,0,0,100)))
     }
 }
