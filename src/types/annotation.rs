@@ -1,4 +1,6 @@
 use eframe::emath::{Pos2, RectTransform};
+use eframe::wgpu::Color;
+use egui::color_picker::color_edit_button_hsva;
 use egui::{Color32, Rect, Response, Shape, Stroke};
 
 use crate::types::screen_grabber::ScreenGrabber;
@@ -11,15 +13,15 @@ pub enum Annotation {
 }
 
 impl Annotation {
-    pub fn segment(starting: Pos2) -> Self {
-        Self::Segment(SegmentAnnotation::new(starting))
+    pub fn segment(starting: Pos2, color: Color32) -> Self {
+        Self::Segment(SegmentAnnotation::new(starting, color))
     }
-    pub fn circle(center: Pos2) -> Self {
-        Self::Circle(CircleAnnotation::new(center))
+    pub fn circle(center: Pos2, color: Color32) -> Self {
+        Self::Circle(CircleAnnotation::new(center, color))
     }
 
-    pub fn rect(pos: Pos2) -> Self {
-        Self::Rect(RectAnnotation::new(pos, pos))
+    pub fn rect(pos: Pos2, color: Color32) -> Self {
+        Self::Rect(RectAnnotation::new(pos, pos, color))
     }
 
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
@@ -36,13 +38,15 @@ impl Annotation {
 pub struct SegmentAnnotation {
     pub starting_pos: Pos2,
     pub ending_pos: Pos2,
+    pub color: Color32,
 }
 
 impl SegmentAnnotation {
-    fn new(starting: Pos2) -> Self {
+    fn new(starting: Pos2, color: Color32) -> Self {
         Self {
             starting_pos: starting,
             ending_pos: starting,
+            color,
         }
     }
 
@@ -56,10 +60,7 @@ impl SegmentAnnotation {
                 rect_transform.transform_pos(self.starting_pos),
                 rect_transform.transform_pos(self.ending_pos),
             ],
-            Stroke::new(
-                10.0 * scaling,
-                Color32::from_rgba_unmultiplied(255, 0, 0, 25),
-            ),
+            Stroke::new(10.0 * scaling, self.color),
         )
     }
 }
@@ -68,23 +69,22 @@ impl SegmentAnnotation {
 pub struct CircleAnnotation {
     pub center: Pos2,
     pub radius: f32,
+    pub color: Color32,
 }
 
 impl CircleAnnotation {
-    pub fn new(center: Pos2) -> Self {
+    pub fn new(center: Pos2, color: Color32) -> Self {
         Self {
-            center: center,
+            center,
             radius: 0.0,
+            color,
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::circle_stroke(
             rect_transform.transform_pos_clamped(self.center),
             self.radius * scaling,
-            Stroke::new(
-                10.0 * scaling,
-                Color32::from_rgba_unmultiplied(255, 0, 0, 25),
-            ),
+            Stroke::new(10.0 * scaling, self.color),
         )
     }
     pub fn update_center(&mut self, center: Pos2) {
@@ -94,15 +94,17 @@ impl CircleAnnotation {
         self.radius = (pos - self.center).length();
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct RectAnnotation {
     pub min: Pos2,
     pub max: Pos2,
+    pub color: Color32,
 }
 
 impl RectAnnotation {
-    pub fn new(min: Pos2, max: Pos2) -> Self {
-        Self { min, max }
+    pub fn new(min: Pos2, max: Pos2, color: Color32) -> Self {
+        Self { min, max, color }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::rect_stroke(
@@ -111,13 +113,13 @@ impl RectAnnotation {
                 rect_transform.transform_pos_clamped(self.max),
             ]),
             0.0,
-            Stroke::new(
-                10.0 * scaling,
-                Color32::from_rgba_unmultiplied(255, 0, 0, 25),
-            ),
+            Stroke::new(10.0 * scaling, self.color),
         )
     }
     pub fn update_max(&mut self, max: Pos2) {
         self.max = max;
+    }
+    pub fn update_color(&mut self, color: Color32) {
+        self.color = color;
     }
 }

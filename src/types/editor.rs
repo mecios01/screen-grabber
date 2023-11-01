@@ -2,7 +2,7 @@ use std::default::Default;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
-use egui::{Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use egui::{Color32, Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -71,7 +71,7 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::segment(pos));
+            self.cur_annotation = Some(Annotation::segment(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
@@ -93,7 +93,7 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::circle(pos));
+            self.cur_annotation = Some(Annotation::circle(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
@@ -114,7 +114,7 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.cur_annotation = Some(Annotation::rect(pos));
+            self.cur_annotation = Some(Annotation::rect(pos, Color32::from(self.current_color)));
             return;
         }
         if input_res.drag_released() {
