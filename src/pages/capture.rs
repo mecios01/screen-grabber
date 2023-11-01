@@ -1,31 +1,9 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Image, Layout, Pos2, Response, Rounding, Sense, Shape, Widget};
+use egui::{Layout, Pos2, Response, Sense, Shape, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::annotation::Annotation;
-use crate::types::icons::*;
 use crate::types::screen_grabber::ScreenGrabber;
-
-pub fn medium_hover_button(ui: &mut egui::Ui, image: &Image<'_>) -> egui::Response {
-    let size_points = egui::Vec2::splat(24.0);
-
-    let (id, rect) = ui.allocate_space(size_points);
-    let response = ui.interact(rect, id, Sense::click());
-    let tint = if response.hovered() {
-        ui.painter().rect_filled(
-            rect,
-            Rounding::same(4.0),
-            ui.style().visuals.extreme_bg_color,
-        );
-        ui.visuals().widgets.active.fg_stroke.color
-    } else {
-        ui.visuals().widgets.inactive.fg_stroke.color
-    };
-    let image = image.clone().tint(tint);
-    image.paint_at(ui, rect);
-    response
-    // ui.add(image.clone().fit_to_exact_size(size_points))
-}
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // epaint::TessellationOptions::default().debug_paint_clip_rects = false;
@@ -41,21 +19,11 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
         }
-        egui::SidePanel::left("left-panel-toolbox")
-            .exact_width(40f32)
-            .show_inside(ui, |ui| {
-                ui.vertical(|ui| {
-                    // egui::ImageButton::new(ERASER_SVG.clone()).ui(ui);
-                    medium_hover_button(ui, &CURSOR_SVG);
-                    medium_hover_button(ui, &ELLIPSE_SVG);
-                    medium_hover_button(ui, &ERASER_SVG);
-                    medium_hover_button(ui, &LINE_SVG);
-                    medium_hover_button(ui, &MOVE_SVG);
-                    medium_hover_button(ui, &RECTANGLE_SVG);
-                    medium_hover_button(ui, &SELECT_SVG);
-                    medium_hover_button(ui, &TEXT_SVG);
-                })
-            });
+        egui::SidePanel::left("left-panel-toolbox").show_inside(ui, |ui| {
+            ui.vertical_centered_justified(|ui| {
+                app.editor.show_tool_buttons(ui);
+            })
+        });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
                 let image_res = egui::Image::new(&app.texture_image.clone().unwrap())
@@ -74,7 +42,6 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
 
                 let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
                 manage_input(app, input_res, to_screen.inverse());
-                println!("{:?}", image_res.rect);
                 if app.editor.cur_annotation.is_some() {
                     painter.add(
                         app.editor

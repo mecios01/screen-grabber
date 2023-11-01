@@ -58,7 +58,7 @@ impl SegmentAnnotation {
             ],
             Stroke::new(
                 10.0 * scaling,
-                Color32::from_rgba_premultiplied(255, 0, 0, 100),
+                Color32::from_rgba_unmultiplied(255, 0, 0, 25),
             ),
         )
     }
