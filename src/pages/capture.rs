@@ -1,11 +1,10 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::epaint::CircleShape;
-use egui::{Color32, Image, Layout, Pos2, Response, Rounding, Sense, Sense, Shape, Stroke, Widget};
+use egui::{Image, Layout, Pos2, Response, Rounding, Sense, Shape, Widget};
 
 use crate::pages::types::PageType;
+use crate::types::annotation::Annotation;
 use crate::types::icons::*;
 use crate::types::screen_grabber::ScreenGrabber;
-use crate::types::Annotation;
 
 pub fn medium_hover_button(ui: &mut egui::Ui, image: &Image<'_>) -> egui::Response {
     let size_points = egui::Vec2::splat(24.0);
