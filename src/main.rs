@@ -2,6 +2,7 @@ use types::screen_grabber::ScreenGrabber;
 
 pub mod pages;
 pub mod types;
+
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         decorated: true,
@@ -15,6 +16,9 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Screengrabber",
         native_options,
-        Box::new(|cc| Box::new(ScreenGrabber::new(cc))),
+        Box::new(|cc| {
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+            Box::new(ScreenGrabber::new(cc))
+        }),
     )
 }

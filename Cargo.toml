@@ -8,5 +8,7 @@ edition = "2021"
 [dependencies]
 eframe = { version = "0.23.0", features = ["persistence", "wgpu"] }
 egui = "0.23.0"
+egui_extras = { version = "0.23.0", features = ["all_loaders"] }
+lazy_static = "1.4.0"
 screenshots = "0.8.4"
 serde = { version = "1.0.188", features = ["derive"] }
