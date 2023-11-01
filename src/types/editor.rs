@@ -1,13 +1,14 @@
 use eframe::emath::RectTransform;
 use egui::{Shape, Ui};
+
+use crate::types::annotation::Annotation;
 use crate::types::screen_grabber::ScreenGrabber;
-use crate::utils::input::Annotation;
 
 pub enum StackAction {
     AddShape(Shape), //NO TEXT SHAPES HERE (THEY NEED TO BE HANDLED DIFFERENTLY)
 }
 
-pub enum Mode{
+pub enum Mode {
     Idle,
     DrawSegment,
     DrawCircle,
@@ -35,6 +36,5 @@ impl Editor {
         todo!();
     }
 
-    fn manage_input(app: &mut ScreenGrabber, ui: &mut Ui, to_original: RectTransform){
-    }
+    fn manage_input(app: &mut ScreenGrabber, ui: &mut Ui, to_original: RectTransform) {}
 }
