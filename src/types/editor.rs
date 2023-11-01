@@ -6,7 +6,6 @@ use egui::{Color32, Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
-use crate::types::screen_grabber::ScreenGrabber;
 
 pub enum StackAction {
     AddShape(Shape), //NO TEXT SHAPES HERE (THEY NEED TO BE HANDLED DIFFERENTLY)

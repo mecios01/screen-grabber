@@ -97,27 +97,31 @@ impl CircleAnnotation {
 
 #[derive(Debug, Clone)]
 pub struct RectAnnotation {
-    pub min: Pos2,
-    pub max: Pos2,
+    pub p1: Pos2,
+    pub p2: Pos2,
     pub color: Color32,
 }
 
 impl RectAnnotation {
     pub fn new(min: Pos2, max: Pos2, color: Color32) -> Self {
-        Self { min, max, color }
+        Self {
+            p1: min,
+            p2: max,
+            color,
+        }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::rect_stroke(
-            Rect::from([
-                rect_transform.transform_pos_clamped(self.min),
-                rect_transform.transform_pos_clamped(self.max),
-            ]),
+            Rect::from_two_pos(
+                rect_transform.transform_pos_clamped(self.p1),
+                rect_transform.transform_pos_clamped(self.p2),
+            ),
             0.0,
             Stroke::new(10.0 * scaling, self.color),
         )
     }
     pub fn update_max(&mut self, max: Pos2) {
-        self.max = max;
+        self.p2 = max;
     }
     pub fn update_color(&mut self, color: Color32) {
         self.color = color;

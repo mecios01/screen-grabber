@@ -1,8 +1,7 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Layout, Pos2, Response, Sense, Shape, Widget};
+use egui::{Layout, Pos2, Sense, Shape, Widget};
 
 use crate::pages::types::PageType;
-use crate::types::annotation::Annotation;
 use crate::types::screen_grabber::ScreenGrabber;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -46,6 +45,15 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
                 //manage_input(app, input_res, to_screen.inverse());
                 app.editor.manage_input(ui, to_screen.inverse());
+
+                let shapes: Vec<Shape> = app
+                    .editor
+                    .annotations
+                    .iter()
+                    .map(|a| a.render(scaling, to_screen))
+                    .collect();
+                painter.extend(shapes);
+
                 if app.editor.cur_annotation.is_some() {
                     painter.add(
                         app.editor
@@ -55,14 +63,6 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                             .render(scaling, to_screen),
                     );
                 }
-
-                let shapes: Vec<Shape> = app
-                    .editor
-                    .annotations
-                    .iter()
-                    .map(|a| a.render(scaling, to_screen))
-                    .collect();
-                painter.extend(shapes);
             });
         }
     });
