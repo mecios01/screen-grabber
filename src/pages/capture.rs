@@ -1,10 +1,11 @@
 use eframe::emath::{Align, Rect, RectTransform};
 use egui::epaint::CircleShape;
-use egui::{Color32, Image, Layout, Pos2, Rounding, Sense, Stroke, Widget};
+use egui::{Color32, Image, Layout, Pos2, Response, Rounding, Sense, Sense, Shape, Stroke, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::icons::*;
 use crate::types::screen_grabber::ScreenGrabber;
+use crate::types::Annotation;
 
 pub fn medium_hover_button(ui: &mut egui::Ui, image: &Image<'_>) -> egui::Response {
     let size_points = egui::Vec2::splat(24.0);
@@ -58,40 +59,64 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                let image_res = egui::Image::new(&app.texture_image.clone().unwrap())
+                    .max_size(ui.available_size())
+                    .maintain_aspect_ratio(true)
+                    .ui(ui);
+
                 let original_rect = Rect::from_min_size(
                     Pos2::ZERO,
                     (app.texture_image.clone().unwrap().size_vec2()),
                 );
-                let res = egui::Image::new(&app.texture_image.clone().unwrap())
-                    .max_size(ui.available_size())
-                    .maintain_aspect_ratio(true)
-                    // .shrink_to_fit()
-                    .ui(ui);
+                let to_screen = RectTransform::from_to(original_rect, image_res.rect);
+                let scaling = to_screen.scale()[0]; //res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
+                                                    //ctx is an Arc so clone === copy pointer
+                let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
 
-                let to_screen = RectTransform::from_to(original_rect, res.rect);
-                let scale = res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
-                //ctx is an Arc so clone === copy pointer
-                let painter = egui::Painter::new(ctx.clone(), res.layer_id, res.rect);
-                let (x, y) = (res.rect.width(), res.rect.height());
-                // println!("x:{x} y:{y}");
-                // println!("{:?}, {:?}", to_screen.scale(), scale);
-                let input = (Pos2::new(500.0, 400.0), 100.0);
+                let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
+                manage_input(app, input_res, to_screen.inverse());
+                println!("{:?}", image_res.rect);
+                if app.editor.cur_annotation.is_some() {
+                    painter.add(
+                        app.editor
+                            .cur_annotation
+                            .as_mut()
+                            .unwrap()
+                            .render(scaling, to_screen),
+                    );
+                }
 
-                let line = egui::Shape::LineSegment {
-                    points: [
-                        to_screen.transform_pos(Pos2::ZERO),
-                        to_screen.transform_pos(Pos2::new(original_rect.width() / 2.0, 100.0)),
-                    ],
-                    stroke: Stroke::new(10.0 * scale, Color32::RED),
-                };
-                let circle = egui::Shape::Circle(CircleShape::stroke(
-                    to_screen.transform_pos(Pos2::new(input.0.x, input.0.y)),
-                    input.1 * to_screen.scale()[0],
-                    Stroke::new(10.0 * to_screen.scale()[0], Color32::RED),
-                ));
-                painter.add(line);
-                painter.add(circle);
+                let shapes: Vec<Shape> = app
+                    .editor
+                    .annotations
+                    .iter()
+                    .map(|a| a.render(scaling, to_screen))
+                    .collect();
+                painter.extend(shapes);
             });
         }
     });
+}
+
+fn manage_input(app: &mut ScreenGrabber, input_response: Response, to_orginal: RectTransform) {
+    if input_response.drag_started() {
+        app.editor.cur_annotation = Some(Annotation::segment(
+            to_orginal.transform_pos_clamped(input_response.interact_pointer_pos().unwrap()),
+        ));
+        return;
+    }
+    if input_response.drag_released() {
+        //TODO
+        app.editor
+            .annotations
+            .push(app.editor.cur_annotation.clone().unwrap());
+        app.editor.cur_annotation = None;
+        return;
+    }
+    if app.editor.cur_annotation.is_some() {
+        app.editor.cur_annotation.as_mut().unwrap().update(
+            to_orginal.transform_pos_clamped(input_response.interact_pointer_pos().unwrap()),
+        );
+        return;
+    }
 }
