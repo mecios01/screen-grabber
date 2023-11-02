@@ -177,7 +177,6 @@ impl Editor {
         let pos = input_res.interact_pointer_pos().unwrap();
 
         if input_res.clicked() {
-            println!("{:?}", pos);
             let index = self.annotations.iter().rposition(|a| {
                 a.check_click(pos, to_original.inverse().scale()[0], to_original.inverse())
             });
