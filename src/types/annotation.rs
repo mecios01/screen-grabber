@@ -7,6 +7,8 @@ pub enum Annotation {
     Circle(CircleAnnotation),
     Rect(RectAnnotation),
     Arrow(ArrowAnnotation),
+    Pencil(PencilAnnotation),
+    //Text(TextAnnotation),
 }
 
 impl Annotation {
@@ -25,12 +27,16 @@ impl Annotation {
         Self::Arrow(ArrowAnnotation::new(starting, color))
     }
 
+    pub fn pencil(starting: Pos2, color: Color32) -> Self {
+        Self::Pencil(PencilAnnotation::new(starting, color))
+    }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         match self {
             Annotation::Segment(s) => s.render(scaling, rect_transform),
             Annotation::Circle(c) => c.render(scaling, rect_transform),
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
+            Annotation::Pencil(p) => p.render(scaling, rect_transform),
         }
     }
     //TODO
@@ -175,5 +181,56 @@ impl ArrowAnnotation {
         );
 
         Shape::Vec(vec![body, tip1, tip2])
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextAnnotation {
+    pub pos: Pos2,
+    pub text: String,
+}
+
+impl TextAnnotation {
+    fn new(pos: Pos2) -> Self {
+        Self {
+            pos,
+            text: String::from("Ciao"),
+        }
+    }
+
+    pub fn update_text(&mut self, new_text: String) {
+        self.text = new_text;
+    }
+
+    // fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+    //
+    // }
+}
+
+#[derive(Debug, Clone)]
+pub struct PencilAnnotation {
+    pub points: Vec<Pos2>,
+    pub color: Color32,
+}
+
+impl PencilAnnotation {
+    fn new(pos: Pos2, color: Color32) -> Self {
+        Self {
+            points: vec![pos],
+            color,
+        }
+    }
+    pub fn update_points(&mut self, pos: Pos2) {
+        self.points.push(pos);
+    }
+
+    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        let line: Vec<Pos2> = self
+            .points
+            .iter()
+            .map(|p| rect_transform.transform_pos_clamped(*p))
+            .collect();
+
+        Shape::line(line, Stroke::new(10.0 * scaling, self.color))
     }
 }

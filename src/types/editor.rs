@@ -57,7 +57,7 @@ impl Editor {
             Mode::DrawEllipse => {}
             Mode::Erase => self.manage_arrow(ui, to_original),
             Mode::InsertText => {}
-            Mode::Select => {}
+            Mode::Select => self.manage_pencil(ui, to_original),
             Mode::Move => {}
         }
     }
@@ -148,6 +148,26 @@ impl Editor {
         }
     }
 
+    fn manage_pencil(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.cur_annotation = Some(Annotation::pencil(pos, Color32::from(self.current_color)));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations.push(self.cur_annotation.clone().unwrap());
+            self.cur_annotation = None;
+            return;
+        }
+        if let Annotation::Pencil(ref mut p) = self.cur_annotation.as_mut().unwrap() {
+            p.update_points(pos);
+        }
+    }
     pub fn tool_button(&mut self, ui: &mut Ui, image: &Image<'_>, mode: Mode) -> egui::Response {
         let size_points = egui::Vec2::splat(24.0);
 
