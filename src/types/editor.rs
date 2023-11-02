@@ -2,7 +2,7 @@ use std::default::Default;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
-use egui::{Color32, Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use egui::{Color32, Image, Pos2, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -56,7 +56,7 @@ impl Editor {
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
             Mode::Erase => self.manage_arrow(ui, to_original),
-            Mode::InsertText => {}
+            Mode::InsertText => self.manage_eraser(ui, to_original),
             Mode::Select => self.manage_pencil(ui, to_original),
             Mode::Move => {}
         }
@@ -168,6 +168,25 @@ impl Editor {
             p.update_points(pos);
         }
     }
+
+    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+        let pos = input_res.interact_pointer_pos().unwrap();
+
+        if input_res.clicked() {
+            println!("{:?}", pos);
+            let index = self.annotations.iter().rposition(|a| {
+                a.check_click(pos, to_original.inverse().scale()[0], to_original.inverse())
+            });
+            if index.is_some() {
+                self.annotations.remove(index.unwrap());
+            }
+        }
+    }
+
     pub fn tool_button(&mut self, ui: &mut Ui, image: &Image<'_>, mode: Mode) -> egui::Response {
         let size_points = egui::Vec2::splat(24.0);
 

@@ -39,6 +39,12 @@ impl Annotation {
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
         }
     }
+
+    pub fn check_click(&self, click: Pos2, scaling: f32, rect_transform: RectTransform) -> bool {
+        self.render(scaling, rect_transform)
+            .visual_bounding_rect()
+            .contains(click)
+    }
     //TODO
 }
 
