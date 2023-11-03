@@ -66,7 +66,7 @@ impl Editor {
         let shapes: Vec<Shape> = self
             .annotations
             .iter()
-            .map(|a| a.render(to_screen.scale()[0], to_screen, painter))
+            .map(|a| a.render(to_screen.scale()[0], to_screen, painter, false))
             .collect();
         painter.extend(shapes);
 
@@ -75,6 +75,7 @@ impl Editor {
                 to_screen.scale()[0],
                 to_screen,
                 painter,
+                true,
             ));
         }
     }
@@ -218,11 +219,6 @@ impl Editor {
                             modifiers: egui::Modifiers::NONE,
                             ..
                         } => {
-                            if let Annotation::Text(ref mut t) =
-                                self.cur_annotation.as_mut().unwrap()
-                            {
-                                t.update_editing(false);
-                            }
                             self.annotations.push(self.cur_annotation.clone().unwrap());
                             self.cur_annotation = None;
                             return;

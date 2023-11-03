@@ -35,14 +35,20 @@ impl Annotation {
     pub fn text(pos: Pos2, color: Color32) -> Self {
         Self::Text(TextAnnotation::new(pos, color))
     }
-    pub fn render(&self, scaling: f32, rect_transform: RectTransform, painter: &Painter) -> Shape {
+    pub fn render(
+        &self,
+        scaling: f32,
+        rect_transform: RectTransform,
+        painter: &Painter,
+        editing: bool,
+    ) -> Shape {
         match self {
             Annotation::Segment(s) => s.render(scaling, rect_transform),
             Annotation::Circle(c) => c.render(scaling, rect_transform),
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
-            Annotation::Text(t) => t.render(scaling, rect_transform, painter),
+            Annotation::Text(t) => t.render(scaling, rect_transform, painter, editing),
         }
     }
 
@@ -53,7 +59,7 @@ impl Annotation {
         rect_transform: RectTransform,
         painter: &Painter,
     ) -> bool {
-        self.render(scaling, rect_transform, painter)
+        self.render(scaling, rect_transform, painter, false)
             .visual_bounding_rect()
             .contains(click)
     }
@@ -208,7 +214,6 @@ pub struct TextAnnotation {
     pub text: String,
     pub size: f32,
     pub color: Color32,
-    pub editing: bool,
 }
 
 impl TextAnnotation {
@@ -218,7 +223,6 @@ impl TextAnnotation {
             text: String::from(""),
             size: 32.0,
             color,
-            editing: true,
         }
     }
 
@@ -230,11 +234,17 @@ impl TextAnnotation {
         self.text.pop();
     }
 
-    pub fn update_editing(&mut self, value: bool) {
-        self.editing = value;
-    }
+    //pub fn update_editing(&mut self, value: bool) {
+    //    self.editing = value;
+    //}
 
-    fn render(&self, scaling: f32, to_screen: RectTransform, painter: &Painter) -> Shape {
+    fn render(
+        &self,
+        scaling: f32,
+        to_screen: RectTransform,
+        painter: &Painter,
+        editing: bool,
+    ) -> Shape {
         let galley = painter.layout_no_wrap(
             self.text.clone(),
             FontId::monospace(self.size * scaling),
@@ -244,7 +254,7 @@ impl TextAnnotation {
             to_screen.transform_pos_clamped(self.pos),
             galley,
         ));
-        if !self.editing {
+        if !editing {
             return text_shape;
         }
 
