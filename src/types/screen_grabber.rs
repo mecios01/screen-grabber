@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::types::{MyConfig, PageType, SettingSection};
+use crate::pages::types::MyConfig;
+use crate::pages::types::PageType;
+use crate::pages::types::{PageType, SettingSection};
 use crate::types::editor::Editor;
 
 pub const APP_KEY: &str = "screen-grabber";
