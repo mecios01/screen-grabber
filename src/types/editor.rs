@@ -215,6 +215,7 @@ impl Editor {
                         Event::Key {
                             key: Key::Enter,
                             pressed: true,
+                            modifiers: egui::Modifiers::NONE,
                             ..
                         } => {
                             if let Annotation::Text(ref mut t) =
@@ -226,6 +227,18 @@ impl Editor {
                             self.cur_annotation = None;
                             return;
                         }
+                        Event::Key {
+                            key: Key::Enter,
+                            pressed: true,
+                            modifiers: egui::Modifiers::SHIFT,
+                            ..
+                        } => {
+                            if let Annotation::Text(ref mut t) =
+                                self.cur_annotation.as_mut().unwrap()
+                            {
+                                t.update_text(&"\n".to_string());
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -233,7 +246,7 @@ impl Editor {
             return;
         }
 
-        let pos = input_res.interact_pointer_pos().unwrap();
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.clicked() {
             self.cur_annotation = Some(Annotation::text(pos, Color32::from(self.current_color)));
             return;
@@ -286,7 +299,8 @@ impl Editor {
         image.paint_at(ui, rect);
 
         if response.clicked() {
-            self.mode = mode
+            self.mode = mode;
+            self.cur_annotation = None;
         }
         response
     }

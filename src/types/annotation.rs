@@ -42,7 +42,7 @@ impl Annotation {
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
-            Annotation::Text(t) => t.render(scaling, painter),
+            Annotation::Text(t) => t.render(scaling, rect_transform, painter),
         }
     }
 
@@ -234,25 +234,34 @@ impl TextAnnotation {
         self.editing = value;
     }
 
-    fn render(&self, scaling: f32, painter: &Painter) -> Shape {
+    fn render(&self, scaling: f32, to_screen: RectTransform, painter: &Painter) -> Shape {
         let galley = painter.layout_no_wrap(
             self.text.clone(),
             FontId::monospace(self.size * scaling),
             self.color,
         );
-
-        let text_shape = Shape::Text(TextShape::new(self.pos, galley));
+        let text_shape = Shape::Text(TextShape::new(
+            to_screen.transform_pos_clamped(self.pos),
+            galley,
+        ));
         if !self.editing {
             return text_shape;
         }
 
-        let mut rect = text_shape.visual_bounding_rect();
+        let mut rect = text_shape.visual_bounding_rect().expand(4.0);
         if rect.any_nan() {
             rect = Rect::from_two_pos(
-                self.pos,
-                self.pos + Vec2::angled(std::f32::consts::TAU / 8.0) * self.size * scaling,
+                to_screen.transform_pos_clamped(self.pos),
+                to_screen.transform_pos_clamped(
+                    self.pos + Vec2::angled(std::f32::consts::TAU / 8.0) * self.size * scaling,
+                ),
             )
+            .expand(4.0);
         }
+
+        let count = self.text.chars().rev().take_while(|c| *c == '\n').count() as f32;
+        rect.extend_with_y((rect.max.y) + (self.size * count * scaling));
+
         let mut dashed_rect = Shape::dashed_line(
             [
                 rect.left_top(),
