@@ -1,5 +1,7 @@
 use eframe::emath::{Pos2, RectTransform, Rot2};
-use egui::{Color32, Rect, Shape, Stroke};
+use eframe::wgpu::Color;
+use egui::epaint::TextShape;
+use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
 
 #[derive(Debug, Clone)]
 pub enum Annotation {
@@ -8,7 +10,7 @@ pub enum Annotation {
     Rect(RectAnnotation),
     Arrow(ArrowAnnotation),
     Pencil(PencilAnnotation),
-    //Text(TextAnnotation),
+    Text(TextAnnotation),
 }
 
 impl Annotation {
@@ -30,18 +32,29 @@ impl Annotation {
     pub fn pencil(starting: Pos2, color: Color32) -> Self {
         Self::Pencil(PencilAnnotation::new(starting, color))
     }
-    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+
+    pub fn text(pos: Pos2, color: Color32) -> Self {
+        Self::Text(TextAnnotation::new(pos, color))
+    }
+    pub fn render(&self, scaling: f32, rect_transform: RectTransform, painter: &Painter) -> Shape {
         match self {
             Annotation::Segment(s) => s.render(scaling, rect_transform),
             Annotation::Circle(c) => c.render(scaling, rect_transform),
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
+            Annotation::Text(t) => t.render(scaling, painter),
         }
     }
 
-    pub fn check_click(&self, click: Pos2, scaling: f32, rect_transform: RectTransform) -> bool {
-        self.render(scaling, rect_transform)
+    pub fn check_click(
+        &self,
+        click: Pos2,
+        scaling: f32,
+        rect_transform: RectTransform,
+        painter: &Painter,
+    ) -> bool {
+        self.render(scaling, rect_transform, painter)
             .visual_bounding_rect()
             .contains(click)
     }
@@ -194,23 +207,37 @@ impl ArrowAnnotation {
 pub struct TextAnnotation {
     pub pos: Pos2,
     pub text: String,
+    pub size: f32,
+    pub color: Color32,
 }
 
 impl TextAnnotation {
-    fn new(pos: Pos2) -> Self {
+    fn new(pos: Pos2, color: Color32) -> Self {
         Self {
             pos,
-            text: String::from("Ciao"),
+            text: String::from(""),
+            size: 32.0,
+            color,
         }
     }
 
-    pub fn update_text(&mut self, new_text: String) {
-        self.text = new_text;
+    pub fn update_text(&mut self, new_text: &String) {
+        self.text = self.text.clone() + new_text.as_str();
     }
 
-    // fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
-    //
-    // }
+    pub fn delete_char(&mut self) {
+        self.text.pop();
+    }
+
+    fn render(&self, scaling: f32, painter: &Painter) -> Shape {
+        let galley = painter.layout_no_wrap(
+            self.text.clone(),
+            FontId::monospace(self.size * scaling),
+            self.color,
+        );
+
+        Shape::Text(TextShape::new(self.pos, galley))
+    }
 }
 
 #[derive(Debug, Clone)]

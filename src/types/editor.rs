@@ -2,7 +2,7 @@ use std::default::Default;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
-use egui::{Color32, Image, Pos2, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -48,17 +48,34 @@ impl Editor {
         todo!();
     }
 
-    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
+    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
         match self.mode {
             Mode::Idle => {}
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
-            Mode::Erase => self.manage_arrow(ui, to_original),
-            Mode::InsertText => self.manage_eraser(ui, to_original),
+            Mode::Erase => self.manage_eraser(ui, to_original, painter),
+            Mode::InsertText => self.manage_text(ui, to_original),
             Mode::Select => self.manage_pencil(ui, to_original),
-            Mode::Move => {}
+            Mode::Move => self.manage_arrow(ui, to_original),
+        }
+    }
+
+    pub fn manage_render(&self, painter: &Painter, to_screen: RectTransform) {
+        let shapes: Vec<Shape> = self
+            .annotations
+            .iter()
+            .map(|a| a.render(to_screen.scale()[0], to_screen, painter))
+            .collect();
+        painter.extend(shapes);
+
+        if self.cur_annotation.is_some() {
+            painter.add(self.cur_annotation.as_ref().unwrap().render(
+                to_screen.scale()[0],
+                to_screen,
+                painter,
+            ));
         }
     }
 
@@ -169,7 +186,56 @@ impl Editor {
         }
     }
 
-    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform) {
+    fn manage_text(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
+
+        if input_res.interact_pointer_pos().is_none() {
+            if self.cur_annotation.is_some() {
+                let x = ui.input(|s| s.events.clone());
+                for event in &x {
+                    match event {
+                        Event::Text(text_to_insert) => {
+                            if let Annotation::Text(ref mut t) =
+                                self.cur_annotation.as_mut().unwrap()
+                            {
+                                t.update_text(text_to_insert)
+                            }
+                        }
+                        Event::Key {
+                            key: Key::Backspace,
+                            pressed: true,
+                            ..
+                        } => {
+                            if let Annotation::Text(ref mut t) =
+                                self.cur_annotation.as_mut().unwrap()
+                            {
+                                t.delete_char()
+                            }
+                        }
+                        Event::Key {
+                            key: Key::Enter,
+                            pressed: true,
+                            ..
+                        } => {
+                            self.annotations.push(self.cur_annotation.clone().unwrap());
+                            self.cur_annotation = None;
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            return;
+        }
+
+        let pos = input_res.interact_pointer_pos().unwrap();
+        if input_res.clicked() {
+            self.cur_annotation = Some(Annotation::text(pos, Color32::from(self.current_color)));
+            return;
+        }
+    }
+
+    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
         if input_res.interact_pointer_pos().is_none() {
             return;
@@ -178,7 +244,12 @@ impl Editor {
 
         if input_res.clicked() {
             let index = self.annotations.iter().rposition(|a| {
-                a.check_click(pos, to_original.inverse().scale()[0], to_original.inverse())
+                a.check_click(
+                    pos,
+                    to_original.inverse().scale()[0],
+                    to_original.inverse(),
+                    painter,
+                )
             });
             if index.is_some() {
                 self.annotations.remove(index.unwrap());
