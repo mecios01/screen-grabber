@@ -1,5 +1,4 @@
-use eframe::emath::{Pos2, RectTransform, Rot2};
-use eframe::wgpu::Color;
+use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
 use egui::epaint::TextShape;
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
 
@@ -209,6 +208,7 @@ pub struct TextAnnotation {
     pub text: String,
     pub size: f32,
     pub color: Color32,
+    pub editing: bool,
 }
 
 impl TextAnnotation {
@@ -218,6 +218,7 @@ impl TextAnnotation {
             text: String::from(""),
             size: 32.0,
             color,
+            editing: true,
         }
     }
 
@@ -229,6 +230,10 @@ impl TextAnnotation {
         self.text.pop();
     }
 
+    pub fn update_editing(&mut self, value: bool) {
+        self.editing = value;
+    }
+
     fn render(&self, scaling: f32, painter: &Painter) -> Shape {
         let galley = painter.layout_no_wrap(
             self.text.clone(),
@@ -236,7 +241,33 @@ impl TextAnnotation {
             self.color,
         );
 
-        Shape::Text(TextShape::new(self.pos, galley))
+        let text_shape = Shape::Text(TextShape::new(self.pos, galley));
+        if !self.editing {
+            return text_shape;
+        }
+
+        let mut rect = text_shape.visual_bounding_rect();
+        if rect.any_nan() {
+            rect = Rect::from_two_pos(
+                self.pos,
+                self.pos + Vec2::angled(std::f32::consts::TAU / 8.0) * self.size * scaling,
+            )
+        }
+        let mut dashed_rect = Shape::dashed_line(
+            [
+                rect.left_top(),
+                rect.right_top(),
+                rect.right_bottom(),
+                rect.left_bottom(),
+                rect.left_top(),
+            ]
+            .as_slice(),
+            Stroke::new(1.0, Color32::LIGHT_GRAY),
+            1.0,
+            3.0,
+        );
+        dashed_rect.push(text_shape);
+        Shape::Vec(dashed_rect)
     }
 }
 
