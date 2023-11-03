@@ -4,7 +4,7 @@ use egui::panel::Side;
 
 pub fn launcher_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     let window_size = ctx.screen_rect().width();
-    egui::containers::CentralPanel::default().show(ctx, |_| {
+    egui::containers::CentralPanel::default().show(ctx, |_ui| {
         egui::SidePanel::new(Side::Left, "image_panel")
             .resizable(false)
             .exact_width(window_size * 0.7)

@@ -1,6 +1,6 @@
 use std::thread;
 
-use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Visuals};
+use egui::{ColorImage, TextureHandle, TextureOptions, Vec2};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,9 @@ use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
 use crate::pages::types::MyConfig;
+use crate::pages::types::PageType;
 use crate::pages::types::{PageType, SettingSection};
+use crate::types::editor::Editor;
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -19,8 +21,13 @@ pub struct ScreenGrabber {
     current_page: PageType,
     //image captured
     #[serde(skip)]
-    pub captured_image: Option<TextureHandle>,
+    pub texture_image: Option<TextureHandle>,
+
+    #[serde(skip)]
+    pub captured_image: Option<ColorImage>,
     pub is_minimized: bool,
+    #[serde(skip)]
+    pub editor: Editor,
 
     //settings
     #[serde(skip)]
@@ -33,8 +40,10 @@ impl Default for ScreenGrabber {
     fn default() -> Self {
         Self {
             current_page: PageType::Launcher,
-            captured_image: None,
             is_minimized: false,
+            texture_image: None,
+            captured_image: None,
+            editor: Editor::default(),
             //settings
             active_section: SettingSection::General,
             config: MyConfig::load_or_default(),
@@ -50,9 +59,11 @@ impl ScreenGrabber {
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         set_font_style(&cc.egui_ctx);
+
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, APP_KEY).unwrap_or_default();
         }
+
         Default::default()
     }
     pub fn set_page(&mut self, page: PageType) {
@@ -60,11 +71,17 @@ impl ScreenGrabber {
     }
     #[inline]
     pub fn has_captured_image(&self) -> bool {
-        self.captured_image.is_some()
+        self.texture_image.is_some()
     }
 
+    pub fn get_original_size(&self) -> Vec2 {
+        if let Some(image) = &self.texture_image {
+            return image.size_vec2();
+        }
+        Vec2::ZERO
+    }
     pub fn set_new_captured_image(&mut self, image: TextureHandle) {
-        self.captured_image = Some(image);
+        self.texture_image = Some(image);
         self.is_minimized = false;
     }
     pub fn capture(&mut self, ctx: &egui::Context) {
@@ -77,7 +94,8 @@ impl ScreenGrabber {
         .join()
         .unwrap();
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
-        self.captured_image = Some(id)
+        self.texture_image = Some(id);
+        self.captured_image = Some(image);
     }
 
     ///settings (to understand if this is the right place for setters of settings)
@@ -110,17 +128,20 @@ impl eframe::App for ScreenGrabber {
     }
 }
 
-fn set_font_style(ctx: &egui::Context) {
-    use FontFamily::{Monospace, Proportional};
+fn set_font_style(_ctx: &egui::Context) {
+    //Defaults are pretty good but in case we want to change them or allow the user to do so this
+    // is the way to do it (at least one possible way)
 
-    let mut style = (*ctx.style()).clone();
-    style.text_styles = [
-        (TextStyle::Heading, FontId::new(25.0, Proportional)),
-        (TextStyle::Body, FontId::new(16.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
-        (TextStyle::Button, FontId::new(22.0, Proportional)),
-        (TextStyle::Small, FontId::new(12.0, Proportional)),
-    ]
-    .into();
-    ctx.set_style(style);
+    // use FontFamily::{Monospace, Proportional};
+    //
+    // let mut style = (*ctx.style()).clone();
+    // style.text_styles = [
+    //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
+    //     (TextStyle::Body, FontId::new(16.0, Proportional)),
+    //     (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+    //     (TextStyle::Button, FontId::new(22.0, Proportional)),
+    //     (TextStyle::Small, FontId::new(12.0, Proportional)),
+    // ]
+    // .into();
+    // ctx.set_style(style);
 }
