@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
+use crate::pages::types::MyConfig;
 use crate::pages::types::{PageType, SettingSection};
 
 pub const APP_KEY: &str = "screen-grabber";
@@ -24,8 +25,8 @@ pub struct ScreenGrabber {
     //settings
     #[serde(skip)]
     pub active_section: SettingSection,
-    pub start_minimized: bool,
-    pub theme: Visuals,
+    #[serde(skip)]
+    pub config: MyConfig,
 }
 
 impl Default for ScreenGrabber {
@@ -36,8 +37,7 @@ impl Default for ScreenGrabber {
             is_minimized: false,
             //settings
             active_section: SettingSection::General,
-            start_minimized: false,
-            theme: Visuals::dark()
+            config: MyConfig::load_or_default(),
         }
     }
 }
@@ -46,12 +46,10 @@ impl ScreenGrabber {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-        cc.egui_ctx.set_visuals(Visuals::dark());
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         set_font_style(&cc.egui_ctx);
-
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, APP_KEY).unwrap_or_default();
         }
@@ -61,7 +59,9 @@ impl ScreenGrabber {
         self.current_page = page
     }
     #[inline]
-    pub fn has_captured_image(&self) -> bool { self.captured_image.is_some() }
+    pub fn has_captured_image(&self) -> bool {
+        self.captured_image.is_some()
+    }
 
     pub fn set_new_captured_image(&mut self, image: TextureHandle) {
         self.captured_image = Some(image);
@@ -73,21 +73,35 @@ impl ScreenGrabber {
             let size = [screenshot.width() as _, screenshot.height() as _];
             let pixels = screenshot.as_flat_samples();
             ColorImage::from_rgba_unmultiplied(size, pixels.as_slice())
-        }).join().unwrap();
+        })
+        .join()
+        .unwrap();
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
         self.captured_image = Some(id)
     }
 
     ///settings (to understand if this is the right place for setters of settings)
-    pub fn set_active_section(&mut self, session: SettingSection) { self.active_section = session }
+    pub fn set_active_section(&mut self, session: SettingSection) {
+        self.active_section = session
+    }
+
+    // pub fn load_config(&mut self) -> Result<(), confy::ConfyError> {
+    //     self.config = confy::load("screen-grabber", "config")?;
+    //     Ok(())
+    // }
+    pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
+        println!("{}", &self.config.get_example_test());
+        confy::store("screen-grabber", "config", &self.config)?;
+        Ok(())
+    }
 }
 
 impl eframe::App for ScreenGrabber {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         match self.current_page {
-            PageType::Launcher => { launcher_page(self, ctx, frame) }
-            PageType::Capture => { capture_page(self, ctx, frame) }
-            PageType::Settings => { settings_page(self, ctx, frame) }
+            PageType::Launcher => launcher_page(self, ctx, frame),
+            PageType::Capture => capture_page(self, ctx, frame),
+            PageType::Settings => settings_page(self, ctx, frame),
         }
     }
 
@@ -106,8 +120,7 @@ fn set_font_style(ctx: &egui::Context) {
         (TextStyle::Monospace, FontId::new(16.0, Monospace)),
         (TextStyle::Button, FontId::new(22.0, Proportional)),
         (TextStyle::Small, FontId::new(12.0, Proportional)),
-    ].into();
+    ]
+    .into();
     ctx.set_style(style);
 }
-
-

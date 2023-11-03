@@ -1,7 +1,7 @@
 use types::screen_grabber::ScreenGrabber;
 
-pub mod types;
 pub mod pages;
+pub mod types;
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
@@ -13,5 +13,9 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     // native_options.transparent = true;
-    eframe::run_native("App", native_options, Box::new(|cc| Box::new(ScreenGrabber::new(cc))))
+    eframe::run_native(
+        "App",
+        native_options,
+        Box::new(|cc| Box::new(ScreenGrabber::new(cc))),
+    )
 }
