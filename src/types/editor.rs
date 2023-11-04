@@ -295,7 +295,11 @@ impl Editor {
         image.paint_at(ui, rect);
 
         if response.clicked() {
-            self.mode = mode;
+            if self.mode == mode {
+                self.mode = Mode::Idle;
+            } else {
+                self.mode = mode;
+            }
             self.cur_annotation = None;
         }
         response
