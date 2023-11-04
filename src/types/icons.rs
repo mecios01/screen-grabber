@@ -9,4 +9,5 @@ lazy_static::lazy_static! {
     pub static ref RECTANGLE_SVG: Image<'static> = Image::new(egui::include_image!("../assets/icons/rectangle.svg"));
     pub static ref SELECT_SVG: Image<'static> = Image::new(egui::include_image!("../assets/icons/select.svg"));
     pub static ref TEXT_SVG: Image<'static> = Image::new(egui::include_image!("../assets/icons/text.svg"));
+    pub static ref SETTINGS_SVG: Image<'static> = Image::new(egui::include_image!("../assets/icons/settings.svg"));
 }
