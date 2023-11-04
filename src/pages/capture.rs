@@ -1,9 +1,5 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::epaint::TextShape;
-use egui::ImageData::Color;
-use egui::{
-    Align2, Color32, Event, FontId, Layout, Pos2, RichText, Sense, Shape, Stroke, TextEdit, Widget,
-};
+use egui::{Layout, Pos2, Sense, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;

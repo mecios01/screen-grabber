@@ -1,8 +1,7 @@
-use std::default::Default;
-
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
 use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use std::default::Default;
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
