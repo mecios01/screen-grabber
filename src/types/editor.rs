@@ -1,9 +1,9 @@
-use std::default::Default;
 use std::mem;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
-use egui::{Color32, Image, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use std::default::Default;
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -38,7 +38,7 @@ pub struct Editor {
     pub mode: Mode,
     pub last_mode: Option<Mode>,
     pub current_annotation: Option<Annotation>,
-    pub undone_annotations: Option<Vec<Annotation>>,
+    pub undone_annotations: Vec<Annotation>,
     pub annotations: Vec<Annotation>,
     pub current_color: Rgba,
     // captured_image
@@ -51,33 +51,51 @@ impl Default for Editor {
             current_annotation: None,
             annotations: Vec::new(),
             current_color: Rgba::RED,
-            undone_annotations: None,
+            undone_annotations: Vec::new(),
             last_mode: None,
         }
     }
 }
 
 impl Editor {
-    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
+    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
         match self.mode {
             Mode::Crop => {}
-            Mode::DrawArrow => {}
+            Mode::DrawArrow => self.manage_arrow(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
-            Mode::DrawFree => {}
+            Mode::DrawFree => self.manage_pencil(ui, to_original),
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawPixelate => {}
             Mode::DrawRect => self.manage_rect(ui, to_original),
-            Mode::Erase => self.manage_arrow(ui, to_original),
+            Mode::Erase => self.manage_eraser(ui, to_original, painter),
             Mode::Highlight => {}
             Mode::Idle => {}
-            Mode::InsertText => {}
+            Mode::InsertText => self.manage_text(ui, to_original),
             Mode::Move => {}
             Mode::Redo => self.redo(),
             Mode::Select => {}
             Mode::SetWidth(_width) => {}
             Mode::SetZoom(_zoom) => {}
             Mode::Undo => self.undo(),
+        }
+    }
+
+    pub fn manage_render(&self, painter: &Painter, to_screen: RectTransform) {
+        let shapes: Vec<Shape> = self
+            .annotations
+            .iter()
+            .map(|a| a.render(to_screen.scale()[0], to_screen, painter, false))
+            .collect();
+        painter.extend(shapes);
+
+        if self.current_annotation.is_some() {
+            painter.add(self.current_annotation.as_ref().unwrap().render(
+                to_screen.scale()[0],
+                to_screen,
+                painter,
+                true,
+            ));
         }
     }
 
@@ -175,6 +193,116 @@ impl Editor {
         }
     }
 
+    fn manage_pencil(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.drag_started() {
+            self.current_annotation =
+                Some(Annotation::pencil(pos, Color32::from(self.current_color)));
+            return;
+        }
+        if input_res.drag_released() {
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
+            return;
+        }
+        if let Annotation::Pencil(ref mut p) = self.current_annotation.as_mut().unwrap() {
+            p.update_points(pos);
+        }
+    }
+
+    fn manage_text(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
+
+        if input_res.interact_pointer_pos().is_none() {
+            if self.current_annotation.is_some() {
+                let x = ui.input(|s| s.events.clone());
+                for event in &x {
+                    match event {
+                        Event::Text(text_to_insert) => {
+                            if let Annotation::Text(ref mut t) =
+                                self.current_annotation.as_mut().unwrap()
+                            {
+                                t.update_text(text_to_insert)
+                            }
+                        }
+                        Event::Key {
+                            key: Key::Backspace,
+                            pressed: true,
+                            ..
+                        } => {
+                            if let Annotation::Text(ref mut t) =
+                                self.current_annotation.as_mut().unwrap()
+                            {
+                                t.delete_char()
+                            }
+                        }
+                        Event::Key {
+                            key: Key::Enter,
+                            pressed: true,
+                            modifiers: egui::Modifiers::NONE,
+                            ..
+                        } => {
+                            self.annotations
+                                .push(self.current_annotation.clone().unwrap());
+                            self.current_annotation = None;
+                            return;
+                        }
+                        Event::Key {
+                            key: Key::Enter,
+                            pressed: true,
+                            modifiers: egui::Modifiers::SHIFT,
+                            ..
+                        } => {
+                            if let Annotation::Text(ref mut t) =
+                                self.current_annotation.as_mut().unwrap()
+                            {
+                                t.update_text(&"\n".to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            return;
+        }
+
+        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        if input_res.clicked() {
+            self.current_annotation =
+                Some(Annotation::text(pos, Color32::from(self.current_color)));
+            return;
+        }
+    }
+
+    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
+        if input_res.interact_pointer_pos().is_none() {
+            return;
+        }
+        let pos = input_res.interact_pointer_pos().unwrap();
+
+        if input_res.clicked() {
+            let index = self.annotations.iter().rposition(|a| {
+                a.check_click(
+                    pos,
+                    to_original.inverse().scale()[0],
+                    to_original.inverse(),
+                    painter,
+                )
+            });
+            if index.is_some() {
+                let removed = self.annotations.remove(index.unwrap());
+                self.undone_annotations.push(removed);
+            }
+        }
+    }
+
     pub fn tool_button(&mut self, ui: &mut Ui, image: &Image<'_>, mode: Mode) -> egui::Response {
         let size_points = egui::Vec2::splat(24.0);
 
@@ -199,7 +327,12 @@ impl Editor {
         image.paint_at(ui, rect);
 
         if response.clicked() {
-            self.mode = mode
+            if self.mode == mode {
+                self.mode = Mode::Idle;
+            } else {
+                self.mode = mode;
+            }
+            self.current_annotation = None;
         }
         response
     }
@@ -254,14 +387,8 @@ impl Editor {
 
     fn undo(&mut self) {
         if self.annotations.len() > 0 {
-            if self.undone_annotations.is_none() {
-                self.undone_annotations = Some(Vec::<Annotation>::new());
-            }
-            //unwrapping here is safe
             let undone = self.annotations.pop().unwrap();
-            let mut undone_arr = mem::take(&mut self.undone_annotations).unwrap();
-            undone_arr.push(undone);
-            self.undone_annotations = Some(undone_arr);
+            self.undone_annotations.push(undone);
         }
         match mem::take(&mut self.last_mode) {
             Some(mode) => self.mode = mode,
@@ -269,13 +396,9 @@ impl Editor {
         }
     }
     fn redo(&mut self) {
-        if self.undone_annotations.is_some() {
-            let mut undone = mem::take(&mut self.undone_annotations).unwrap();
-            if undone.len() > 0 {
-                let redo = undone.pop().unwrap();
-                self.annotations.push(redo);
-            }
-            self.undone_annotations = Some(undone);
+        if self.undone_annotations.len() > 0 {
+            let redo = self.undone_annotations.pop().unwrap();
+            self.annotations.push(redo);
         }
         match mem::take(&mut self.last_mode) {
             Some(mode) => self.mode = mode,

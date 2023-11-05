@@ -1,5 +1,6 @@
-use eframe::emath::{Pos2, RectTransform, Rot2};
-use egui::{Color32, Rect, Shape, Stroke};
+use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
+use egui::epaint::TextShape;
+use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
 
 #[derive(Debug, Clone)]
 pub enum Annotation {
@@ -7,6 +8,8 @@ pub enum Annotation {
     Circle(CircleAnnotation),
     Rect(RectAnnotation),
     Arrow(ArrowAnnotation),
+    Pencil(PencilAnnotation),
+    Text(TextAnnotation),
 }
 
 impl Annotation {
@@ -25,13 +28,40 @@ impl Annotation {
         Self::Arrow(ArrowAnnotation::new(starting, color))
     }
 
-    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+    pub fn pencil(starting: Pos2, color: Color32) -> Self {
+        Self::Pencil(PencilAnnotation::new(starting, color))
+    }
+
+    pub fn text(pos: Pos2, color: Color32) -> Self {
+        Self::Text(TextAnnotation::new(pos, color))
+    }
+    pub fn render(
+        &self,
+        scaling: f32,
+        rect_transform: RectTransform,
+        painter: &Painter,
+        editing: bool,
+    ) -> Shape {
         match self {
             Annotation::Segment(s) => s.render(scaling, rect_transform),
             Annotation::Circle(c) => c.render(scaling, rect_transform),
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
+            Annotation::Pencil(p) => p.render(scaling, rect_transform),
+            Annotation::Text(t) => t.render(scaling, rect_transform, painter, editing),
         }
+    }
+
+    pub fn check_click(
+        &self,
+        click: Pos2,
+        scaling: f32,
+        rect_transform: RectTransform,
+        painter: &Painter,
+    ) -> bool {
+        self.render(scaling, rect_transform, painter, false)
+            .visual_bounding_rect()
+            .contains(click)
     }
     //TODO
 }
@@ -175,5 +205,115 @@ impl ArrowAnnotation {
         );
 
         Shape::Vec(vec![body, tip1, tip2])
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextAnnotation {
+    pub pos: Pos2,
+    pub text: String,
+    pub size: f32,
+    pub color: Color32,
+}
+
+impl TextAnnotation {
+    fn new(pos: Pos2, color: Color32) -> Self {
+        Self {
+            pos,
+            text: String::from(""),
+            size: 32.0,
+            color,
+        }
+    }
+
+    pub fn update_text(&mut self, new_text: &String) {
+        self.text = self.text.clone() + new_text.as_str();
+    }
+
+    pub fn delete_char(&mut self) {
+        self.text.pop();
+    }
+
+    //pub fn update_editing(&mut self, value: bool) {
+    //    self.editing = value;
+    //}
+
+    fn render(
+        &self,
+        scaling: f32,
+        to_screen: RectTransform,
+        painter: &Painter,
+        editing: bool,
+    ) -> Shape {
+        let galley = painter.layout_no_wrap(
+            self.text.clone(),
+            FontId::monospace(self.size * scaling),
+            self.color,
+        );
+        let text_shape = Shape::Text(TextShape::new(
+            to_screen.transform_pos_clamped(self.pos),
+            galley,
+        ));
+        if !editing {
+            return text_shape;
+        }
+
+        let mut rect = text_shape.visual_bounding_rect().expand(4.0);
+        if rect.any_nan() {
+            rect = Rect::from_two_pos(
+                to_screen.transform_pos_clamped(self.pos),
+                to_screen.transform_pos_clamped(
+                    self.pos + Vec2::angled(std::f32::consts::TAU / 8.0) * self.size * scaling,
+                ),
+            )
+            .expand(4.0);
+        }
+
+        let count = self.text.chars().rev().take_while(|c| *c == '\n').count() as f32;
+        rect.extend_with_y((rect.max.y) + (self.size * count * scaling));
+
+        let mut dashed_rect = Shape::dashed_line(
+            [
+                rect.left_top(),
+                rect.right_top(),
+                rect.right_bottom(),
+                rect.left_bottom(),
+                rect.left_top(),
+            ]
+            .as_slice(),
+            Stroke::new(1.0, Color32::LIGHT_GRAY),
+            1.0,
+            3.0,
+        );
+        dashed_rect.push(text_shape);
+        Shape::Vec(dashed_rect)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PencilAnnotation {
+    pub points: Vec<Pos2>,
+    pub color: Color32,
+}
+
+impl PencilAnnotation {
+    fn new(pos: Pos2, color: Color32) -> Self {
+        Self {
+            points: vec![pos],
+            color,
+        }
+    }
+    pub fn update_points(&mut self, pos: Pos2) {
+        self.points.push(pos);
+    }
+
+    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        let line: Vec<Pos2> = self
+            .points
+            .iter()
+            .map(|p| rect_transform.transform_pos_clamped(*p))
+            .collect();
+
+        Shape::line(line, Stroke::new(10.0 * scaling, self.color))
     }
 }
