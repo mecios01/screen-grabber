@@ -13,20 +13,30 @@ pub enum StackAction {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
-    Idle,
-    DrawLine,
-    DrawRect,
+    Crop,
+    DrawArrow,
     DrawCircle,
     DrawEllipse,
+    DrawFree,
+    DrawLine,
+    DrawPixelate,
+    DrawRect,
     Erase,
+    Highlight,
+    Idle,
     InsertText,
-    Select,
     Move,
+    Redo,
+    Select,
+    SetWidth(f32),
+    SetZoom(f32),
+    Undo,
 }
 
 pub struct Editor {
     pub mode: Mode,
     pub current_annotation: Option<Annotation>,
+    pub undone_annotations: Option<Vec<Annotation>>,
     pub annotations: Vec<Annotation>,
     pub current_color: Rgba,
     // captured_image
@@ -39,6 +49,7 @@ impl Default for Editor {
             current_annotation: None,
             annotations: Vec::new(),
             current_color: Rgba::RED,
+            undone_annotations: None,
         }
     }
 }
@@ -46,15 +57,24 @@ impl Default for Editor {
 impl Editor {
     pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
         match self.mode {
-            Mode::Idle => {}
-            Mode::DrawLine => self.manage_segment(ui, to_original),
-            Mode::DrawRect => self.manage_rect(ui, to_original),
+            Mode::Crop => {}
+            Mode::DrawArrow => {}
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
+            Mode::DrawFree => {}
+            Mode::DrawLine => self.manage_segment(ui, to_original),
+            Mode::DrawPixelate => {}
+            Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::Erase => self.manage_arrow(ui, to_original),
+            Mode::Highlight => {}
+            Mode::Idle => {}
             Mode::InsertText => {}
-            Mode::Select => {}
             Mode::Move => {}
+            Mode::Redo => self.redo(),
+            Mode::Select => {}
+            Mode::SetWidth(width) => {}
+            Mode::SetZoom(zoom) => {}
+            Mode::Undo => self.undo(),
         }
     }
 
@@ -181,15 +201,50 @@ impl Editor {
         response
     }
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
-        self.tool_button(ui, &CURSOR_SVG, Mode::Idle);
-        self.tool_button(ui, &ELLIPSE_SVG, Mode::DrawCircle);
-        self.tool_button(ui, &ERASER_SVG, Mode::Erase);
-        self.tool_button(ui, &LINE_SVG, Mode::DrawLine);
-        self.tool_button(ui, &MOVE_SVG, Mode::Move);
-        self.tool_button(ui, &RECTANGLE_SVG, Mode::DrawRect);
-        self.tool_button(ui, &SELECT_SVG, Mode::Select);
-        self.tool_button(ui, &TEXT_SVG, Mode::InsertText);
+        //dark mode
+        if ui.visuals().dark_mode {
+            // self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
+            // self.tool_button(ui, &SELECT_DARK, Mode::Select);
+            // self.tool_button(ui, &MOVE_DARK, Mode::Move);
+            // self.tool_button(ui, &ERASER_DARK, Mode::Erase);
+            // self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
+            // self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
+            // self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
+            // self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
+        }
+        //light mode
+        else {
+            self.tool_button(ui, &CIRCLE, Mode::DrawCircle);
+            self.tool_button(ui, &CROP, Mode::Crop);
+            self.tool_button(ui, &CURSOR, Mode::Idle);
+            self.tool_button(ui, &ERASER, Mode::Erase);
+            self.tool_button(ui, &HIGHLIGHT, Mode::Highlight);
+            self.tool_button(ui, &LINE, Mode::DrawLine);
+            self.tool_button(ui, &MOVE, Mode::Move);
+            self.tool_button(ui, &PENCIL, Mode::DrawFree);
+            self.tool_button(ui, &PIXELATE, Mode::DrawPixelate);
+            self.tool_button(ui, &RECTANGLE, Mode::DrawRect);
+            self.tool_button(ui, &SELECT, Mode::Select);
+            self.tool_button(ui, &TEXT, Mode::InsertText);
+            //TODO: render differently
+            self.tool_button(ui, &UNDO, Mode::Undo);
+            self.tool_button(ui, &REDO, Mode::Redo);
+            self.tool_button(ui, &WIDTH, Mode::Idle);
+            self.tool_button(ui, &ZOOMM, Mode::Erase);
+            self.tool_button(ui, &ZOOMP, Mode::Erase);
+        }
         let alpha: Alpha = Alpha::BlendOrAdditive;
         egui::color_picker::color_edit_button_rgba(ui, &mut self.current_color, alpha);
     }
+
+    fn undo(&mut self) {
+        if self.annotations.len() > 0 {
+            if self.undone_annotations.is_none() {
+                self.undone_annotations = Some(Vec::<Annotation>::new());
+            }
+            let undone = self.annotations.pop().unwrap();
+            self.undone_annotations.as_deref_mut().unwrap().push(undone);
+        }
+    }
+    fn redo(&mut self) {}
 }
