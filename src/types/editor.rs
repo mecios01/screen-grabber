@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::mem;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
@@ -35,6 +36,7 @@ pub enum Mode {
 
 pub struct Editor {
     pub mode: Mode,
+    pub last_mode: Option<Mode>,
     pub current_annotation: Option<Annotation>,
     pub undone_annotations: Option<Vec<Annotation>>,
     pub annotations: Vec<Annotation>,
@@ -50,6 +52,7 @@ impl Default for Editor {
             annotations: Vec::new(),
             current_color: Rgba::RED,
             undone_annotations: None,
+            last_mode: None,
         }
     }
 }
@@ -72,8 +75,8 @@ impl Editor {
             Mode::Move => {}
             Mode::Redo => self.redo(),
             Mode::Select => {}
-            Mode::SetWidth(width) => {}
-            Mode::SetZoom(zoom) => {}
+            Mode::SetWidth(_width) => {}
+            Mode::SetZoom(_zoom) => {}
             Mode::Undo => self.undo(),
         }
     }
@@ -203,17 +206,29 @@ impl Editor {
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
         //dark mode
         if ui.visuals().dark_mode {
-            // self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
-            // self.tool_button(ui, &SELECT_DARK, Mode::Select);
-            // self.tool_button(ui, &MOVE_DARK, Mode::Move);
-            // self.tool_button(ui, &ERASER_DARK, Mode::Erase);
-            // self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
-            // self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
-            // self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
-            // self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
+            self.tool_button(ui, &ARROW_DARK, Mode::DrawArrow);
+            self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
+            self.tool_button(ui, &CROP_DARK, Mode::Crop);
+            self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
+            self.tool_button(ui, &ERASER_DARK, Mode::Erase);
+            self.tool_button(ui, &HIGHLIGHT_DARK, Mode::Highlight);
+            self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
+            self.tool_button(ui, &MOVE_DARK, Mode::Move);
+            self.tool_button(ui, &PENCIL_DARK, Mode::DrawFree);
+            self.tool_button(ui, &PIXELATE_DARK, Mode::DrawPixelate);
+            self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
+            self.tool_button(ui, &SELECT_DARK, Mode::Select);
+            self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
+            //TODO: render differently
+            self.tool_button(ui, &UNDO_DARK, Mode::Undo);
+            self.tool_button(ui, &REDO_DARK, Mode::Redo);
+            self.tool_button(ui, &WIDTH_DARK, Mode::SetWidth(10.0));
+            self.tool_button(ui, &ZOOMM_DARK, Mode::SetZoom(100.0));
+            self.tool_button(ui, &ZOOMP_DARK, Mode::SetZoom(50.0));
         }
         //light mode
         else {
+            self.tool_button(ui, &ARROW, Mode::DrawArrow);
             self.tool_button(ui, &CIRCLE, Mode::DrawCircle);
             self.tool_button(ui, &CROP, Mode::Crop);
             self.tool_button(ui, &CURSOR, Mode::Idle);
@@ -229,9 +244,9 @@ impl Editor {
             //TODO: render differently
             self.tool_button(ui, &UNDO, Mode::Undo);
             self.tool_button(ui, &REDO, Mode::Redo);
-            self.tool_button(ui, &WIDTH, Mode::Idle);
-            self.tool_button(ui, &ZOOMM, Mode::Erase);
-            self.tool_button(ui, &ZOOMP, Mode::Erase);
+            self.tool_button(ui, &WIDTH, Mode::SetWidth(10.0));
+            self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
+            self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
         let alpha: Alpha = Alpha::BlendOrAdditive;
         egui::color_picker::color_edit_button_rgba(ui, &mut self.current_color, alpha);
@@ -242,9 +257,29 @@ impl Editor {
             if self.undone_annotations.is_none() {
                 self.undone_annotations = Some(Vec::<Annotation>::new());
             }
+            //unwrapping here is safe
             let undone = self.annotations.pop().unwrap();
-            self.undone_annotations.as_deref_mut().unwrap().push(undone);
+            let mut undone_arr = mem::take(&mut self.undone_annotations).unwrap();
+            undone_arr.push(undone);
+            self.undone_annotations = Some(undone_arr);
+        }
+        match mem::take(&mut self.last_mode) {
+            Some(mode) => self.mode = mode,
+            None => self.mode = Mode::Idle,
         }
     }
-    fn redo(&mut self) {}
+    fn redo(&mut self) {
+        if self.undone_annotations.is_some() {
+            let mut undone = mem::take(&mut self.undone_annotations).unwrap();
+            if undone.len() > 0 {
+                let redo = undone.pop().unwrap();
+                self.annotations.push(redo);
+            }
+            self.undone_annotations = Some(undone);
+        }
+        match mem::take(&mut self.last_mode) {
+            Some(mode) => self.mode = mode,
+            None => self.mode = Mode::Idle,
+        }
+    }
 }
