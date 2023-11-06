@@ -10,6 +10,7 @@ pub enum Annotation {
     Arrow(ArrowAnnotation),
     Pencil(PencilAnnotation),
     Text(TextAnnotation),
+    Eraser(Box<Annotation>),
 }
 
 impl Annotation {
@@ -35,6 +36,10 @@ impl Annotation {
     pub fn text(pos: Pos2, color: Color32) -> Self {
         Self::Text(TextAnnotation::new(pos, color))
     }
+
+    pub fn eraser(annotation: Annotation) -> Self {
+        Self::Eraser(Box::new(annotation))
+    }
     pub fn render(
         &self,
         scaling: f32,
@@ -49,6 +54,7 @@ impl Annotation {
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
             Annotation::Text(t) => t.render(scaling, rect_transform, painter, editing),
+            Annotation::Eraser(_) => Shape::Noop,
         }
     }
 

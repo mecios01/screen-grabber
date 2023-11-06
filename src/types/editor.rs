@@ -1,9 +1,8 @@
-use std::mem;
-
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
 use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
 use std::default::Default;
+use std::mem;
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -298,7 +297,7 @@ impl Editor {
             });
             if index.is_some() {
                 let removed = self.annotations.remove(index.unwrap());
-                self.undone_annotations.push(removed);
+                self.annotations.push(Annotation::eraser(removed));
             }
         }
     }
@@ -388,6 +387,9 @@ impl Editor {
     fn undo(&mut self) {
         if self.annotations.len() > 0 {
             let undone = self.annotations.pop().unwrap();
+            if let Annotation::Eraser(e) = undone.clone() {
+                self.annotations.push(*e);
+            }
             self.undone_annotations.push(undone);
         }
         match mem::take(&mut self.last_mode) {
@@ -398,6 +400,9 @@ impl Editor {
     fn redo(&mut self) {
         if self.undone_annotations.len() > 0 {
             let redo = self.undone_annotations.pop().unwrap();
+            if let Annotation::Eraser(_) = redo {
+                self.annotations.pop();
+            }
             self.annotations.push(redo);
         }
         match mem::take(&mut self.last_mode) {
