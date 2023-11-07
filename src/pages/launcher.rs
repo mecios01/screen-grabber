@@ -1,11 +1,15 @@
-use egui::panel::Side;
-
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
+use egui::panel::Side;
 
 pub fn launcher_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     let window_size = ctx.screen_rect().width();
     egui::containers::CentralPanel::default().show(ctx, |_ui| {
+        // egui::TopBottomPanel::new(TopBottomSide::Top, "header").show(ctx, |ui|{
+        //    ui.with_layout(Layout::right_to_left(Align::Max), |ui|{
+        //       //TODO: add top left button for settings
+        //    });
+        // });
         egui::SidePanel::new(Side::Left, "image_panel")
             .resizable(false)
             .exact_width(window_size * 0.7)
