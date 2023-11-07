@@ -1,13 +1,14 @@
 use std::thread;
 
-use egui::{ColorImage, TextureHandle, TextureOptions, Vec2};
+use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Vec2};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::types::PageType;
+use crate::pages::types::{PageType, SettingType};
+use crate::types::config::Config;
 use crate::types::editor::Editor;
 
 pub const APP_KEY: &str = "screen-grabber";
@@ -15,29 +16,38 @@ pub const APP_KEY: &str = "screen-grabber";
 #[derive(Deserialize, Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct ScreenGrabber {
-    config: bool,
     //it should be an entire config loaded at start of the app
     current_page: PageType,
     //image captured
     #[serde(skip)]
     pub texture_image: Option<TextureHandle>,
-
     #[serde(skip)]
     pub captured_image: Option<ColorImage>,
     pub is_minimized: bool,
     #[serde(skip)]
     pub editor: Editor,
+
+    //settings
+    #[serde(skip)]
+    pub active_section: SettingType,
+    #[serde(skip)]
+    pub config: Config,
+    #[serde(skip)]
+    pub prev_config: Config,
 }
 
 impl Default for ScreenGrabber {
     fn default() -> Self {
         Self {
-            config: false,
             current_page: PageType::Launcher,
             is_minimized: false,
             texture_image: None,
             captured_image: None,
             editor: Editor::default(),
+            //settings
+            active_section: SettingType::General,
+            config: Config::load_or_default(),
+            prev_config: Config::load_or_default(),
         }
     }
 }
@@ -88,6 +98,21 @@ impl ScreenGrabber {
         self.texture_image = Some(id);
         self.captured_image = Some(image);
     }
+
+    ///settings (to understand if this is the right place for setters of settings)
+    pub fn set_active_section(&mut self, session: SettingType) {
+        self.active_section = session
+    }
+
+    // pub fn load_config(&mut self) -> Result<(), confy::ConfyError> {
+    //     self.config = confy::load("screen-grabber", "config")?;
+    //     Ok(())
+    // }
+    pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
+        println!("{}", &self.config.get_example_test());
+        confy::store("screen-grabber", "config", &self.config)?;
+        Ok(())
+    }
 }
 
 impl eframe::App for ScreenGrabber {
@@ -104,20 +129,20 @@ impl eframe::App for ScreenGrabber {
     }
 }
 
-fn set_font_style(_ctx: &egui::Context) {
+fn set_font_style(ctx: &egui::Context) {
     //Defaults are pretty good but in case we want to change them or allow the user to do so this
     // is the way to do it (at least one possible way)
 
-    // use FontFamily::{Monospace, Proportional};
-    //
-    // let mut style = (*ctx.style()).clone();
-    // style.text_styles = [
-    //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
-    //     (TextStyle::Body, FontId::new(16.0, Proportional)),
-    //     (TextStyle::Monospace, FontId::new(16.0, Monospace)),
-    //     (TextStyle::Button, FontId::new(22.0, Proportional)),
-    //     (TextStyle::Small, FontId::new(12.0, Proportional)),
-    // ]
-    // .into();
-    // ctx.set_style(style);
+    use FontFamily::{Monospace, Proportional};
+
+    let mut style = (*ctx.style()).clone();
+    style.text_styles = [
+        (TextStyle::Heading, FontId::new(16.0, Proportional)),
+        (TextStyle::Body, FontId::new(16.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+        (TextStyle::Button, FontId::new(16.0, Proportional)),
+        (TextStyle::Small, FontId::new(16.0, Proportional)),
+    ]
+    .into();
+    ctx.set_style(style);
 }
