@@ -1,6 +1,8 @@
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
-use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
+use egui::{
+    Color32, DragValue, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui,
+};
 use std::default::Default;
 use std::mem;
 
@@ -39,8 +41,8 @@ pub struct Editor {
     pub current_annotation: Option<Annotation>,
     pub undone_annotations: Vec<Annotation>,
     pub annotations: Vec<Annotation>,
-    pub current_color: Rgba,
-    // captured_image
+    pub current_color: Color32,
+    pub current_width: f32,
 }
 
 impl Default for Editor {
@@ -49,9 +51,10 @@ impl Default for Editor {
             mode: Mode::Idle,
             current_annotation: None,
             annotations: Vec::new(),
-            current_color: Rgba::RED,
+            current_color: Color32::RED,
             undone_annotations: Vec::new(),
             last_mode: None,
+            current_width: 7.5,
         }
     }
 }
@@ -100,14 +103,17 @@ impl Editor {
 
     fn manage_segment(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
+        };
 
-        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
+        let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::segment(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::segment(
+                pos,
+                self.current_color,
+                self.current_width,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -130,8 +136,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::circle(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::circle(
+                pos,
+                self.current_color,
+                self.current_width,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -153,8 +162,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::rect(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::rect(
+                pos,
+                self.current_color,
+                self.current_width,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -176,8 +188,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::arrow(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::arrow(
+                pos,
+                self.current_color,
+                self.current_width,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -200,8 +215,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::pencil(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::pencil(
+                pos,
+                self.current_color,
+                self.current_width,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -273,8 +291,7 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.clicked() {
-            self.current_annotation =
-                Some(Annotation::text(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::text(pos, self.current_color));
             return;
         }
     }
@@ -380,8 +397,17 @@ impl Editor {
             self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
-        let alpha: Alpha = Alpha::BlendOrAdditive;
-        egui::color_picker::color_edit_button_rgba(ui, &mut self.current_color, alpha);
+        Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
+    }
+
+    pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
+        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=15.0))
+            .on_hover_text("Width");
+        ui.color_edit_button_srgba(color);
+        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+        let left = stroke_rect.left_center();
+        let right = stroke_rect.right_center();
+        ui.painter().line_segment([left, right], (*width, *color));
     }
 
     fn undo(&mut self) {

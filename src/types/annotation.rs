@@ -14,23 +14,23 @@ pub enum Annotation {
 }
 
 impl Annotation {
-    pub fn segment(starting: Pos2, color: Color32) -> Self {
-        Self::Segment(SegmentAnnotation::new(starting, color))
+    pub fn segment(starting: Pos2, color: Color32, width: f32) -> Self {
+        Self::Segment(SegmentAnnotation::new(starting, color, width))
     }
-    pub fn circle(center: Pos2, color: Color32) -> Self {
-        Self::Circle(CircleAnnotation::new(center, color))
-    }
-
-    pub fn rect(pos: Pos2, color: Color32) -> Self {
-        Self::Rect(RectAnnotation::new(pos, pos, color))
+    pub fn circle(center: Pos2, color: Color32, width: f32) -> Self {
+        Self::Circle(CircleAnnotation::new(center, color, width))
     }
 
-    pub fn arrow(starting: Pos2, color: Color32) -> Self {
-        Self::Arrow(ArrowAnnotation::new(starting, color))
+    pub fn rect(pos: Pos2, color: Color32, width: f32) -> Self {
+        Self::Rect(RectAnnotation::new(pos, pos, color, width))
     }
 
-    pub fn pencil(starting: Pos2, color: Color32) -> Self {
-        Self::Pencil(PencilAnnotation::new(starting, color))
+    pub fn arrow(starting: Pos2, color: Color32, width: f32) -> Self {
+        Self::Arrow(ArrowAnnotation::new(starting, color, width))
+    }
+
+    pub fn pencil(starting: Pos2, color: Color32, width: f32) -> Self {
+        Self::Pencil(PencilAnnotation::new(starting, color, width))
     }
 
     pub fn text(pos: Pos2, color: Color32) -> Self {
@@ -77,14 +77,16 @@ pub struct SegmentAnnotation {
     pub starting_pos: Pos2,
     pub ending_pos: Pos2,
     pub color: Color32,
+    pub width: f32,
 }
 
 impl SegmentAnnotation {
-    fn new(starting: Pos2, color: Color32) -> Self {
+    fn new(starting: Pos2, color: Color32, width: f32) -> Self {
         Self {
             starting_pos: starting,
             ending_pos: starting,
             color,
+            width,
         }
     }
 
@@ -98,7 +100,7 @@ impl SegmentAnnotation {
                 rect_transform.transform_pos(self.starting_pos),
                 rect_transform.transform_pos(self.ending_pos),
             ],
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         )
     }
 }
@@ -108,21 +110,23 @@ pub struct CircleAnnotation {
     pub center: Pos2,
     pub radius: f32,
     pub color: Color32,
+    pub width: f32,
 }
 
 impl CircleAnnotation {
-    pub fn new(center: Pos2, color: Color32) -> Self {
+    pub fn new(center: Pos2, color: Color32, width: f32) -> Self {
         Self {
             center,
             radius: 0.0,
             color,
+            width,
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::circle_stroke(
             rect_transform.transform_pos_clamped(self.center),
             self.radius * scaling,
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         )
     }
     pub fn update_center(&mut self, center: Pos2) {
@@ -138,11 +142,17 @@ pub struct RectAnnotation {
     pub p1: Pos2,
     pub p2: Pos2,
     pub color: Color32,
+    pub width: f32,
 }
 
 impl RectAnnotation {
-    pub fn new(p1: Pos2, p2: Pos2, color: Color32) -> Self {
-        Self { p1, p2, color }
+    pub fn new(p1: Pos2, p2: Pos2, color: Color32, width: f32) -> Self {
+        Self {
+            p1,
+            p2,
+            color,
+            width,
+        }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::rect_stroke(
@@ -151,7 +161,7 @@ impl RectAnnotation {
                 rect_transform.transform_pos_clamped(self.p2),
             ),
             0.0,
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         )
     }
     pub fn update_p2(&mut self, p2: Pos2) {
@@ -167,14 +177,16 @@ pub struct ArrowAnnotation {
     pub starting_pos: Pos2,
     pub ending_pos: Pos2,
     pub color: Color32,
+    pub width: f32,
 }
 
 impl ArrowAnnotation {
-    fn new(starting: Pos2, color: Color32) -> Self {
+    fn new(starting: Pos2, color: Color32, width: f32) -> Self {
         Self {
             starting_pos: starting,
             ending_pos: starting,
             color,
+            width,
         }
     }
 
@@ -193,21 +205,21 @@ impl ArrowAnnotation {
                 rect_transform.transform_pos(self.starting_pos),
                 rect_transform.transform_pos(self.ending_pos),
             ],
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         );
         let tip1 = Shape::line_segment(
             [
                 rect_transform.transform_pos(tip),
                 rect_transform.transform_pos(tip - tip_length * (rot * dir)),
             ],
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         );
         let tip2 = Shape::line_segment(
             [
                 rect_transform.transform_pos(tip),
                 rect_transform.transform_pos(tip - tip_length * (rot.inverse() * dir)),
             ],
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.width * scaling, self.color),
         );
 
         Shape::Vec(vec![body, tip1, tip2])
@@ -300,13 +312,15 @@ impl TextAnnotation {
 pub struct PencilAnnotation {
     pub points: Vec<Pos2>,
     pub color: Color32,
+    pub width: f32,
 }
 
 impl PencilAnnotation {
-    fn new(pos: Pos2, color: Color32) -> Self {
+    fn new(pos: Pos2, color: Color32, width: f32) -> Self {
         Self {
             points: vec![pos],
             color,
+            width,
         }
     }
     pub fn update_points(&mut self, pos: Pos2) {
@@ -320,6 +334,6 @@ impl PencilAnnotation {
             .map(|p| rect_transform.transform_pos_clamped(*p))
             .collect();
 
-        Shape::line(line, Stroke::new(10.0 * scaling, self.color))
+        Shape::line(line, Stroke::new(self.width * scaling, self.color))
     }
 }

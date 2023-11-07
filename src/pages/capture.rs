@@ -1,5 +1,6 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Layout, Pos2, Sense, Widget};
+use egui::{Image, Layout, Pos2, Sense, Widget};
+use screenshots::image::Frame;
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
@@ -28,7 +29,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                let image_res = egui::Image::new(&app.texture_image.clone().unwrap())
+                let image_res = Image::new(&app.texture_image.clone().unwrap())
                     .max_size(ui.available_size())
                     .maintain_aspect_ratio(true)
                     .ui(ui);
@@ -40,7 +41,6 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                                                     //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
                 let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
-                //manage_input(app, input_res, to_screen.inverse());
                 app.editor.manage_input(ui, to_screen.inverse(), &painter);
                 app.editor.manage_render(&painter, to_screen);
             });
