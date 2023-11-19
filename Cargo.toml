@@ -14,3 +14,12 @@ lazy_static = "1.4.0"
 screenshots = "0.8.5"
 serde = { version = "1.0.190", features = ["derive"] }
 confy = { version = "0.5.1", features = ["yaml_conf"], default-features = false }
+skia-safe = "0.68.0"
+
+[profile.release]
+strip = true
+opt-level = 3
+overflow-checks = false
+debug = false
+lto = true
+panic = "abort"
