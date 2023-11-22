@@ -1,17 +1,12 @@
-use eframe::emath::RectTransform;
-use egui::color_picker::Alpha;
+use eframe::emath::{Rect, RectTransform};
 use egui::{
-    Color32, DragValue, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui,
+    pos2, Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
+    Rounding, Sense, Shape, Stroke, TextureHandle, Ui, Vec2, Widget,
 };
 use std::default::Default;
-use std::mem;
 
-use crate::types::annotation::Annotation;
+use crate::types::annotation::{Annotation, Position};
 use crate::types::icons::*;
-
-pub enum StackAction {
-    AddShape(Shape), //NO TEXT SHAPES HERE (THEY NEED TO BE HANDLED DIFFERENTLY)
-}
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
@@ -36,8 +31,9 @@ pub enum Mode {
 }
 
 pub struct Editor {
+    pub texture: Option<TextureHandle>,
     pub mode: Mode,
-    pub last_mode: Option<Mode>,
+    pub current_crop: Option<Annotation>,
     pub current_annotation: Option<Annotation>,
     pub undone_annotations: Vec<Annotation>,
     pub annotations: Vec<Annotation>,
@@ -48,21 +44,39 @@ pub struct Editor {
 impl Default for Editor {
     fn default() -> Self {
         Self {
+            texture: None,
             mode: Mode::Idle,
             current_annotation: None,
             annotations: Vec::new(),
             current_color: Color32::RED,
             undone_annotations: Vec::new(),
-            last_mode: None,
             current_width: 7.5,
+            current_crop: None,
         }
     }
 }
 
 impl Editor {
-    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+    pub fn manage(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        let image_res = Image::new(&self.texture.clone().unwrap())
+            //let image_res = Image::new(&y.clone())
+            .maintain_aspect_ratio(true)
+            .max_size(ui.available_size())
+            .ui(ui);
+        let original_rect =
+            Rect::from_min_size(Pos2::ZERO, self.texture.clone().unwrap().size_vec2());
+        let to_screen = RectTransform::from_to(original_rect, image_res.rect);
+        let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
+    }
+    pub fn manage_input(
+        &mut self,
+        ctx: &egui::Context,
+        ui: &mut Ui,
+        to_original: RectTransform,
+        painter: &Painter,
+    ) {
         match self.mode {
-            Mode::Crop => {}
+            Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
@@ -75,11 +89,11 @@ impl Editor {
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
             Mode::Move => {}
-            Mode::Redo => self.redo(),
+            Mode::Redo => {}
             Mode::Select => {}
             Mode::SetWidth(_width) => {}
             Mode::SetZoom(_zoom) => {}
-            Mode::Undo => self.undo(),
+            Mode::Undo => {}
         }
     }
 
@@ -101,6 +115,92 @@ impl Editor {
         }
     }
 
+    fn get_input(
+        &self,
+        rect: Rect,
+        ui: &mut Ui,
+        id: Id,
+        rect_transform: RectTransform,
+    ) -> (Response, Option<Pos2>) {
+        let input_res = ui.interact(rect, id, Sense::click_and_drag());
+        let Some(input) = input_res.interact_pointer_pos() else {
+            return (input_res, None);
+        };
+        let pos = rect_transform.transform_pos_clamped(input);
+        return (input_res, Some(pos));
+    }
+
+    fn manage_crop(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        if let Some(Annotation::Crop(ref mut c)) = self.current_annotation.as_mut() {
+            if c.resizing {
+                let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+                let Some(input) = input_res.interact_pointer_pos() else {
+                    return;
+                };
+                let pos = to_original.transform_pos_clamped(input);
+                c.update(pos);
+                if input_res.drag_released_by(PointerButton::Primary) {
+                    if c.p1 != c.p2 {
+                        c.update_resize(false);
+                        c.reset_points();
+                    }
+                }
+                return;
+            }
+            let control_points = c.get_control_points(to_original.inverse());
+            let size = Vec2::splat(8.0);
+            control_points.into_iter().enumerate().for_each(|(i, cp)| {
+                let point_rect = Rect::from_center_size(cp.pos, size);
+                let point_response =
+                    ui.interact(point_rect, ui.id().with(i), Sense::click_and_drag());
+                if point_response.dragged_by(PointerButton::Primary) {
+                    match cp.label {
+                        Position::LeftTop => {
+                            c.p1 += point_response.drag_delta() * to_original.scale()[0];
+                        }
+                        Position::CenterTop => {
+                            c.p1.y += point_response.drag_delta().y * to_original.scale()[0];
+                        }
+                        Position::RightTop => {
+                            c.p1.y += point_response.drag_delta().y * to_original.scale()[0];
+                            c.p2.x += point_response.drag_delta().x * to_original.scale()[0];
+                        }
+                        Position::LeftCenter => {
+                            c.p1.x += point_response.drag_delta().x * to_original.scale()[0];
+                        }
+                        Position::RightCenter => {
+                            c.p2.x += point_response.drag_delta().x * to_original.scale()[0];
+                        }
+                        Position::LeftBottom => {
+                            c.p1.x += point_response.drag_delta().x * to_original.scale()[0];
+                            c.p2.y += point_response.drag_delta().y * to_original.scale()[0];
+                        }
+                        Position::CenterBottom => {
+                            c.p2.y += point_response.drag_delta().y * to_original.scale()[0];
+                        }
+                        Position::RightBottom => {
+                            c.p2 += point_response.drag_delta() * to_original.scale()[0];
+                        }
+                    }
+                }
+                if point_response.drag_released_by(PointerButton::Primary) {
+                    c.reset_points();
+                }
+            });
+            // if input_res.dragged_by(PointerButton::Primary) {
+            //     c.update(pos);
+            // }
+        } else {
+            let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+            let Some(input) = input_res.interact_pointer_pos() else {
+                return;
+            };
+            let pos = to_original.transform_pos_clamped(input);
+            if input_res.drag_started_by(PointerButton::Primary) {
+                self.current_annotation = Some(Annotation::crop(pos));
+            }
+        }
+    }
     fn manage_segment(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
         let Some(input) = input_res.interact_pointer_pos() else {
@@ -108,7 +208,7 @@ impl Editor {
         };
 
         let pos = to_original.transform_pos_clamped(input);
-        if input_res.drag_started() {
+        if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::segment(
                 pos,
                 self.current_color,
@@ -116,26 +216,26 @@ impl Editor {
             ));
             return;
         }
-        if input_res.drag_released() {
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
-            return;
-        }
-
-        if let Annotation::Segment(ref mut s) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Segment(ref mut s)) = self.current_annotation.as_mut() {
             s.update_ending(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if s.starting_pos != s.ending_pos {
+                    self.annotations
+                        .push(self.current_annotation.clone().unwrap());
+                }
+                self.current_annotation = None;
+            }
         }
     }
 
     fn manage_circle(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
+        };
 
-        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
-        if input_res.drag_started() {
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::circle(
                 pos,
                 self.current_color,
@@ -143,25 +243,27 @@ impl Editor {
             ));
             return;
         }
-        if input_res.drag_released() {
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
-            return;
-        }
-        if let Annotation::Circle(ref mut c) = self.current_annotation.as_mut().unwrap() {
+
+        if let Some(Annotation::Circle(ref mut c)) = self.current_annotation.as_mut() {
             c.update_radius(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if c.radius != 0.0 {
+                    self.annotations
+                        .push(self.current_annotation.clone().unwrap());
+                }
+                self.current_annotation = None;
+            }
         }
     }
 
     fn manage_rect(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
+        };
 
-        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
-        if input_res.drag_started() {
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::rect(
                 pos,
                 self.current_color,
@@ -169,25 +271,27 @@ impl Editor {
             ));
             return;
         }
-        if input_res.drag_released() {
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
-            return;
-        }
-        if let Annotation::Rect(ref mut r) = self.current_annotation.as_mut().unwrap() {
+
+        if let Some(Annotation::Rect(ref mut r)) = self.current_annotation.as_mut() {
             r.update_p2(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if r.p1 != r.p2 {
+                    self.annotations
+                        .push(self.current_annotation.clone().unwrap());
+                }
+                self.current_annotation = None;
+            }
         }
     }
 
     fn manage_arrow(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
+        };
 
-        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
-        if input_res.drag_started() {
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::arrow(
                 pos,
                 self.current_color,
@@ -195,26 +299,27 @@ impl Editor {
             ));
             return;
         }
-        if input_res.drag_released() {
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
-            return;
-        }
 
-        if let Annotation::Arrow(ref mut a) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Arrow(ref mut a)) = self.current_annotation.as_mut() {
             a.update_ending(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if a.starting_pos != a.ending_pos {
+                    self.annotations
+                        .push(self.current_annotation.clone().unwrap());
+                }
+                self.current_annotation = None;
+            }
         }
     }
 
     fn manage_pencil(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
+        };
 
-        let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
-        if input_res.drag_started() {
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::pencil(
                 pos,
                 self.current_color,
@@ -222,14 +327,16 @@ impl Editor {
             ));
             return;
         }
-        if input_res.drag_released() {
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
-            return;
-        }
-        if let Annotation::Pencil(ref mut p) = self.current_annotation.as_mut().unwrap() {
+
+        if let Some(Annotation::Pencil(ref mut p)) = self.current_annotation.as_mut() {
             p.update_points(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if p.points.len() > 1 {
+                    self.annotations
+                        .push(self.current_annotation.clone().unwrap());
+                }
+                self.current_annotation = None;
+            }
         }
     }
 
@@ -242,8 +349,8 @@ impl Editor {
                 for event in &x {
                     match event {
                         Event::Text(text_to_insert) => {
-                            if let Annotation::Text(ref mut t) =
-                                self.current_annotation.as_mut().unwrap()
+                            if let Some(Annotation::Text(ref mut t)) =
+                                self.current_annotation.as_mut()
                             {
                                 t.update_text(text_to_insert)
                             }
@@ -253,8 +360,8 @@ impl Editor {
                             pressed: true,
                             ..
                         } => {
-                            if let Annotation::Text(ref mut t) =
-                                self.current_annotation.as_mut().unwrap()
+                            if let Some(Annotation::Text(ref mut t)) =
+                                self.current_annotation.as_mut()
                             {
                                 t.delete_char()
                             }
@@ -276,8 +383,8 @@ impl Editor {
                             modifiers: egui::Modifiers::SHIFT,
                             ..
                         } => {
-                            if let Annotation::Text(ref mut t) =
-                                self.current_annotation.as_mut().unwrap()
+                            if let Some(Annotation::Text(ref mut t)) =
+                                self.current_annotation.as_mut()
                             {
                                 t.update_text(&"\n".to_string());
                             }
@@ -298,10 +405,10 @@ impl Editor {
 
     fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
-        if input_res.interact_pointer_pos().is_none() {
+        let Some(input) = input_res.interact_pointer_pos() else {
             return;
-        }
-        let pos = input_res.interact_pointer_pos().unwrap();
+        };
+        let pos = to_original.transform_pos_clamped(input);
 
         if input_res.clicked() {
             let index = self.annotations.iter().rposition(|a| {
@@ -343,10 +450,16 @@ impl Editor {
         image.paint_at(ui, rect);
 
         if response.clicked() {
-            if self.mode == mode {
-                self.mode = Mode::Idle;
-            } else {
-                self.mode = mode;
+            match mode {
+                Mode::Undo => self.undo(),
+                Mode::Redo => self.redo(),
+                _ => {
+                    if self.mode == mode {
+                        self.mode = Mode::Idle;
+                    } else {
+                        self.mode = mode;
+                    }
+                }
             }
             self.current_annotation = None;
         }
@@ -418,10 +531,6 @@ impl Editor {
             }
             self.undone_annotations.push(undone);
         }
-        match mem::take(&mut self.last_mode) {
-            Some(mode) => self.mode = mode,
-            None => self.mode = Mode::Idle,
-        }
     }
     fn redo(&mut self) {
         if self.undone_annotations.len() > 0 {
@@ -430,10 +539,6 @@ impl Editor {
                 self.annotations.pop();
             }
             self.annotations.push(redo);
-        }
-        match mem::take(&mut self.last_mode) {
-            Some(mode) => self.mode = mode,
-            None => self.mode = Mode::Idle,
         }
     }
 }

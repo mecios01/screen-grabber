@@ -11,6 +11,7 @@ pub enum Annotation {
     Pencil(PencilAnnotation),
     Text(TextAnnotation),
     Eraser(Box<Annotation>),
+    Crop(CropAnnotation),
 }
 
 impl Annotation {
@@ -40,6 +41,10 @@ impl Annotation {
     pub fn eraser(annotation: Annotation) -> Self {
         Self::Eraser(Box::new(annotation))
     }
+
+    pub fn crop(pos: Pos2) -> Self {
+        Self::Crop(CropAnnotation::new(pos, pos))
+    }
     pub fn render(
         &self,
         scaling: f32,
@@ -55,6 +60,7 @@ impl Annotation {
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
             Annotation::Text(t) => t.render(scaling, rect_transform, painter, editing),
             Annotation::Eraser(_) => Shape::Noop,
+            Annotation::Crop(c) => c.render(scaling, rect_transform),
         }
     }
 
@@ -251,11 +257,6 @@ impl TextAnnotation {
     pub fn delete_char(&mut self) {
         self.text.pop();
     }
-
-    //pub fn update_editing(&mut self, value: bool) {
-    //    self.editing = value;
-    //}
-
     fn render(
         &self,
         scaling: f32,
@@ -324,6 +325,11 @@ impl PencilAnnotation {
         }
     }
     pub fn update_points(&mut self, pos: Pos2) {
+        if let Some(last) = self.points.last() {
+            if pos == *last {
+                return;
+            }
+        }
         self.points.push(pos);
     }
 
@@ -335,5 +341,111 @@ impl PencilAnnotation {
             .collect();
 
         Shape::line(line, Stroke::new(self.width * scaling, self.color))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CropAnnotation {
+    pub p1: Pos2,
+    pub p2: Pos2,
+    pub resizing: bool,
+}
+
+impl CropAnnotation {
+    pub fn new(p1: Pos2, p2: Pos2) -> Self {
+        Self {
+            p1,
+            p2,
+            resizing: true,
+        }
+    }
+
+    pub fn reset_points(&mut self) {
+        let rect = Rect::from_two_pos(self.p1, self.p2);
+        self.p1 = rect.min;
+        self.p2 = rect.max;
+    }
+    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        let color = Color32::from_rgb(255, 255, 255);
+        let rect = Rect::from_two_pos(
+            rect_transform.transform_pos_clamped(self.p1),
+            rect_transform.transform_pos_clamped(self.p2),
+        );
+        let border = Shape::rect_stroke(rect, 0.0, Stroke::new(2.0 * scaling, color));
+        let mut cps: Vec<Shape> = self
+            .get_points(rect_transform)
+            .iter()
+            .map(|p| Shape::circle_filled(*p, 8.0 * scaling, color))
+            .collect();
+
+        let top = Rect::everything_above(rect.min.y);
+        let bot = Rect::everything_below(rect.max.y);
+        let mut left = Rect::everything_left_of(rect.min.x);
+        left.set_top(rect.min.y);
+        left.set_bottom(rect.max.y);
+        let mut right = Rect::everything_right_of(rect.right());
+        right.set_top(rect.top());
+        right.set_bottom(rect.bottom());
+        cps.push(Shape::rect_filled(top, 0.0, Color32::from_white_alpha(5)));
+        cps.push(Shape::rect_filled(bot, 0.0, Color32::from_white_alpha(5)));
+        cps.push(Shape::rect_filled(left, 0.0, Color32::from_white_alpha(5)));
+        cps.push(Shape::rect_filled(right, 0.0, Color32::from_white_alpha(5)));
+        cps.push(border);
+        Shape::Vec(cps)
+    }
+
+    pub fn get_points(&self, to_screen: RectTransform) -> Vec<Pos2> {
+        let rect = to_screen.transform_rect(Rect::from_two_pos(self.p1, self.p2));
+        vec![
+            rect.left_top(),
+            rect.center_top(),
+            rect.right_top(),
+            rect.left_center(),
+            rect.right_center(),
+            rect.left_bottom(),
+            rect.center_bottom(),
+            rect.right_bottom(),
+        ]
+    }
+    pub fn get_control_points(&self, to_screen: RectTransform) -> Vec<ControlPoint> {
+        let rect = to_screen.transform_rect(Rect::from_two_pos(self.p1, self.p2));
+
+        vec![
+            ControlPoint::new(rect.left_top(), Position::LeftTop),
+            ControlPoint::new(rect.center_top(), Position::CenterTop),
+            ControlPoint::new(rect.right_top(), Position::RightTop),
+            ControlPoint::new(rect.left_center(), Position::LeftCenter),
+            ControlPoint::new(rect.right_center(), Position::RightCenter),
+            ControlPoint::new(rect.left_bottom(), Position::LeftBottom),
+            ControlPoint::new(rect.center_bottom(), Position::CenterBottom),
+            ControlPoint::new(rect.right_bottom(), Position::RightBottom),
+        ]
+    }
+    pub fn update(&mut self, pos: Pos2) {
+        self.p2 = pos;
+    }
+    pub fn update_resize(&mut self, value: bool) {
+        self.resizing = value;
+    }
+}
+
+pub enum Position {
+    LeftTop,
+    CenterTop,
+    RightTop,
+    LeftCenter,
+    RightCenter,
+    LeftBottom,
+    CenterBottom,
+    RightBottom,
+}
+pub struct ControlPoint {
+    pub pos: Pos2,
+    pub label: Position,
+}
+
+impl ControlPoint {
+    pub fn new(pos: Pos2, label: Position) -> Self {
+        Self { pos, label }
     }
 }
