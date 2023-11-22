@@ -1,9 +1,9 @@
+use std::default::Default;
 use std::mem;
 
 use eframe::emath::RectTransform;
 use egui::color_picker::Alpha;
 use egui::{Color32, Event, Image, Key, Painter, Rgba, Rounding, Sense, Shape, Stroke, Ui};
-use std::default::Default;
 
 use crate::types::annotation::Annotation;
 use crate::types::icons::*;
@@ -41,7 +41,9 @@ pub struct Editor {
     pub undone_annotations: Vec<Annotation>,
     pub annotations: Vec<Annotation>,
     pub current_color: Rgba,
-    // captured_image
+    pub current_fill_color: Option<Rgba>,
+    pub current_thickness: f32,
+    pub current_font_size: f32,
 }
 
 impl Default for Editor {
@@ -53,6 +55,9 @@ impl Default for Editor {
             current_color: Rgba::RED,
             undone_annotations: Vec::new(),
             last_mode: None,
+            current_fill_color: None,
+            current_thickness: 8.0,
+            current_font_size: 16.0,
         }
     }
 }
@@ -107,8 +112,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::segment(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::segment(
+                pos,
+                Color32::from(self.current_color),
+                self.current_thickness,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -118,7 +126,7 @@ impl Editor {
             return;
         }
 
-        if let Annotation::Segment(ref mut s) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Segment(ref mut s)) = self.current_annotation.as_mut() {
             s.update_ending(pos);
         }
     }
@@ -131,8 +139,16 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::circle(pos, Color32::from(self.current_color)));
+            let fill = match self.current_fill_color {
+                Some(color) => Some(Color32::from(color)),
+                None => None,
+            };
+            self.current_annotation = Some(Annotation::circle(
+                pos,
+                Color32::from(self.current_color),
+                self.current_thickness,
+                fill,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -141,7 +157,7 @@ impl Editor {
             self.current_annotation = None;
             return;
         }
-        if let Annotation::Circle(ref mut c) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Circle(ref mut c)) = self.current_annotation.as_mut() {
             c.update_radius(pos);
         }
     }
@@ -154,8 +170,16 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::rect(pos, Color32::from(self.current_color)));
+            let fill = match self.current_fill_color {
+                Some(color) => Some(Color32::from(color)),
+                None => None,
+            };
+            self.current_annotation = Some(Annotation::rect(
+                pos,
+                Color32::from(self.current_color),
+                fill,
+                self.current_thickness,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -164,7 +188,7 @@ impl Editor {
             self.current_annotation = None;
             return;
         }
-        if let Annotation::Rect(ref mut r) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Rect(ref mut r)) = self.current_annotation.as_mut() {
             r.update_p2(pos);
         }
     }
@@ -177,18 +201,24 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::arrow(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::arrow(
+                pos,
+                Color32::from(self.current_color),
+                self.current_thickness,
+            ));
             return;
         }
         if input_res.drag_released() {
+            if let Some(Annotation::Arrow(ref mut a)) = self.current_annotation.as_mut() {
+                a.consolidate();
+            }
             self.annotations
                 .push(self.current_annotation.clone().unwrap());
             self.current_annotation = None;
             return;
         }
 
-        if let Annotation::Arrow(ref mut a) = self.current_annotation.as_mut().unwrap() {
+        if let Some(Annotation::Arrow(ref mut a)) = self.current_annotation.as_mut() {
             a.update_ending(pos);
         }
     }
@@ -201,8 +231,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.drag_started() {
-            self.current_annotation =
-                Some(Annotation::pencil(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::pencil(
+                pos,
+                Color32::from(self.current_color),
+                self.current_thickness,
+            ));
             return;
         }
         if input_res.drag_released() {
@@ -274,8 +307,11 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.clicked() {
-            self.current_annotation =
-                Some(Annotation::text(pos, Color32::from(self.current_color)));
+            self.current_annotation = Some(Annotation::text(
+                pos,
+                Color32::from(self.current_color),
+                self.current_font_size,
+            ));
             return;
         }
     }

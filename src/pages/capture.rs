@@ -18,6 +18,9 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
         }
+        if ui.button("Save as").clicked() {
+            app.save_as();
+        }
         egui::SidePanel::left("left-panel-toolbox")
             .resizable(false)
             .max_width(22f32)

@@ -13,27 +13,32 @@ pub enum Annotation {
 }
 
 impl Annotation {
-    pub fn segment(starting: Pos2, color: Color32) -> Self {
-        Self::Segment(SegmentAnnotation::new(starting, color))
+    pub fn segment(starting: Pos2, color: Color32, thickness: f32) -> Self {
+        Self::Segment(SegmentAnnotation::new(starting, color, thickness))
     }
-    pub fn circle(center: Pos2, color: Color32) -> Self {
-        Self::Circle(CircleAnnotation::new(center, color))
-    }
-
-    pub fn rect(pos: Pos2, color: Color32) -> Self {
-        Self::Rect(RectAnnotation::new(pos, pos, color))
-    }
-
-    pub fn arrow(starting: Pos2, color: Color32) -> Self {
-        Self::Arrow(ArrowAnnotation::new(starting, color))
+    pub fn circle(
+        center: Pos2,
+        color: Color32,
+        thickness: f32,
+        fill_color: Option<Color32>,
+    ) -> Self {
+        Self::Circle(CircleAnnotation::new(center, color, thickness, fill_color))
     }
 
-    pub fn pencil(starting: Pos2, color: Color32) -> Self {
-        Self::Pencil(PencilAnnotation::new(starting, color))
+    pub fn rect(pos: Pos2, color: Color32, fill_color: Option<Color32>, thickness: f32) -> Self {
+        Self::Rect(RectAnnotation::new(pos, pos, color, fill_color, thickness))
     }
 
-    pub fn text(pos: Pos2, color: Color32) -> Self {
-        Self::Text(TextAnnotation::new(pos, color))
+    pub fn arrow(starting: Pos2, color: Color32, thickenss: f32) -> Self {
+        Self::Arrow(ArrowAnnotation::new(starting, color, thickenss))
+    }
+
+    pub fn pencil(starting: Pos2, color: Color32, thickness: f32) -> Self {
+        Self::Pencil(PencilAnnotation::new(starting, color, thickness))
+    }
+
+    pub fn text(pos: Pos2, color: Color32, font_size: f32) -> Self {
+        Self::Text(TextAnnotation::new(pos, color, font_size))
     }
     pub fn render(
         &self,
@@ -71,14 +76,16 @@ pub struct SegmentAnnotation {
     pub starting_pos: Pos2,
     pub ending_pos: Pos2,
     pub color: Color32,
+    pub thickness: f32,
 }
 
 impl SegmentAnnotation {
-    fn new(starting: Pos2, color: Color32) -> Self {
+    fn new(starting: Pos2, color: Color32, thickness: f32) -> Self {
         Self {
             starting_pos: starting,
             ending_pos: starting,
             color,
+            thickness,
         }
     }
 
@@ -92,7 +99,7 @@ impl SegmentAnnotation {
                 rect_transform.transform_pos(self.starting_pos),
                 rect_transform.transform_pos(self.ending_pos),
             ],
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.thickness * scaling, self.color),
         )
     }
 }
@@ -102,21 +109,25 @@ pub struct CircleAnnotation {
     pub center: Pos2,
     pub radius: f32,
     pub color: Color32,
+    pub thickness: f32,
+    pub fill_color: Option<Color32>,
 }
 
 impl CircleAnnotation {
-    pub fn new(center: Pos2, color: Color32) -> Self {
+    pub fn new(center: Pos2, color: Color32, thickness: f32, fill_color: Option<Color32>) -> Self {
         Self {
             center,
             radius: 0.0,
             color,
+            thickness,
+            fill_color,
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::circle_stroke(
             rect_transform.transform_pos_clamped(self.center),
             self.radius * scaling,
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.thickness * scaling, self.color),
         )
     }
     pub fn update_center(&mut self, center: Pos2) {
@@ -132,11 +143,25 @@ pub struct RectAnnotation {
     pub p1: Pos2,
     pub p2: Pos2,
     pub color: Color32,
+    pub fill_color: Option<Color32>,
+    pub thickness: f32,
 }
 
 impl RectAnnotation {
-    pub fn new(p1: Pos2, p2: Pos2, color: Color32) -> Self {
-        Self { p1, p2, color }
+    pub fn new(
+        p1: Pos2,
+        p2: Pos2,
+        color: Color32,
+        fill_color: Option<Color32>,
+        thickness: f32,
+    ) -> Self {
+        Self {
+            p1,
+            p2,
+            color,
+            fill_color,
+            thickness,
+        }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::rect_stroke(
@@ -145,7 +170,7 @@ impl RectAnnotation {
                 rect_transform.transform_pos_clamped(self.p2),
             ),
             0.0,
-            Stroke::new(10.0 * scaling, self.color),
+            Stroke::new(self.thickness * scaling, self.color),
         )
     }
     pub fn update_p2(&mut self, p2: Pos2) {
@@ -157,52 +182,84 @@ impl RectAnnotation {
 }
 
 #[derive(Debug, Clone)]
+pub struct Tip {
+    pub line1: (Pos2, Pos2),
+    pub line2: (Pos2, Pos2),
+}
+
+impl Default for Tip {
+    fn default() -> Self {
+        Self {
+            line1: (Pos2::default(), Pos2::default()),
+            line2: (Pos2::default(), Pos2::default()),
+        }
+    }
+}
+
+impl Tip {
+    pub fn set_line1(&mut self, line1: (Pos2, Pos2)) {
+        self.line1 = line1;
+    }
+    pub fn set_line2(&mut self, line2: (Pos2, Pos2)) {
+        self.line2 = line2;
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ArrowAnnotation {
     pub starting_pos: Pos2,
     pub ending_pos: Pos2,
     pub color: Color32,
+    pub thickness: f32,
+    pub tip: Tip,
 }
 
 impl ArrowAnnotation {
-    fn new(starting: Pos2, color: Color32) -> Self {
+    fn new(starting: Pos2, color: Color32, thickness: f32) -> Self {
         Self {
             starting_pos: starting,
             ending_pos: starting,
             color,
+            thickness,
+            tip: Tip::default(),
         }
     }
 
     pub fn update_ending(&mut self, updating: Pos2) {
         self.ending_pos = updating;
     }
-
-    fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+    ///this allows us to export the tip (if done in the render/update phase causes the tip to glitch)
+    pub fn consolidate(&mut self) {
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let vec = self.ending_pos - self.starting_pos;
         let tip_length = vec.length() / 4.0;
         let tip = self.ending_pos;
         let dir = vec.normalized();
+        self.tip
+            .set_line1((tip, self.ending_pos - tip_length * (rot * dir)));
+        self.tip
+            .set_line2((tip, self.ending_pos - tip_length * (rot.inverse() * dir)));
+    }
+    fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
+        let vec = self.ending_pos - self.starting_pos;
+        let tip_length = vec.length() / 4.0;
+        let tip = rect_transform.transform_pos(self.ending_pos);
+        let dir = vec.normalized();
+        let line1 = [
+            tip,
+            rect_transform.transform_pos(self.ending_pos - tip_length * (rot * dir)),
+        ];
+        let line2 = [
+            tip,
+            rect_transform.transform_pos(self.ending_pos - tip_length * (rot.inverse() * dir)),
+        ];
         let body = Shape::line_segment(
-            [
-                rect_transform.transform_pos(self.starting_pos),
-                rect_transform.transform_pos(self.ending_pos),
-            ],
-            Stroke::new(10.0 * scaling, self.color),
+            [rect_transform.transform_pos(self.starting_pos), tip],
+            Stroke::new(self.thickness * scaling, self.color),
         );
-        let tip1 = Shape::line_segment(
-            [
-                rect_transform.transform_pos(tip),
-                rect_transform.transform_pos(tip - tip_length * (rot * dir)),
-            ],
-            Stroke::new(10.0 * scaling, self.color),
-        );
-        let tip2 = Shape::line_segment(
-            [
-                rect_transform.transform_pos(tip),
-                rect_transform.transform_pos(tip - tip_length * (rot.inverse() * dir)),
-            ],
-            Stroke::new(10.0 * scaling, self.color),
-        );
+        let tip1 = Shape::line_segment(line1, Stroke::new(self.thickness * scaling, self.color));
+        let tip2 = Shape::line_segment(line2, Stroke::new(self.thickness * scaling, self.color));
 
         Shape::Vec(vec![body, tip1, tip2])
     }
@@ -217,11 +274,11 @@ pub struct TextAnnotation {
 }
 
 impl TextAnnotation {
-    fn new(pos: Pos2, color: Color32) -> Self {
+    fn new(pos: Pos2, color: Color32, font_size: f32) -> Self {
         Self {
             pos,
             text: String::from(""),
-            size: 32.0,
+            size: font_size,
             color,
         }
     }
@@ -294,13 +351,15 @@ impl TextAnnotation {
 pub struct PencilAnnotation {
     pub points: Vec<Pos2>,
     pub color: Color32,
+    pub thickness: f32,
 }
 
 impl PencilAnnotation {
-    fn new(pos: Pos2, color: Color32) -> Self {
+    fn new(pos: Pos2, color: Color32, thickness: f32) -> Self {
         Self {
             points: vec![pos],
             color,
+            thickness,
         }
     }
     pub fn update_points(&mut self, pos: Pos2) {
@@ -314,6 +373,6 @@ impl PencilAnnotation {
             .map(|p| rect_transform.transform_pos_clamped(*p))
             .collect();
 
-        Shape::line(line, Stroke::new(10.0 * scaling, self.color))
+        Shape::line(line, Stroke::new(self.thickness * scaling, self.color))
     }
 }
