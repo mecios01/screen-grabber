@@ -417,7 +417,7 @@ impl Editor {
             self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
-        let alpha: Alpha = Alpha::BlendOrAdditive;
+        let alpha: Alpha = Alpha::OnlyBlend;
         egui::color_picker::color_edit_button_rgba(ui, &mut self.current_color, alpha);
     }
 

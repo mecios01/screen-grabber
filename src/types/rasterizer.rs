@@ -259,7 +259,6 @@ impl Rasterizer {
             .collect::<Vec<Point>>();
         let mut path = path::Path::new();
         path.add_poly(&points, false);
-        path = path.simplify().unwrap();
         canvas.draw_path(&path, &paint);
     }
 }
