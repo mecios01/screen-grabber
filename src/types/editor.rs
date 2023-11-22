@@ -1,12 +1,14 @@
-use crate::types::annotation::{Annotation, Position};
-use crate::types::icons::*;
+use std::default::Default;
+
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    pos2, Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response, Rgba,
+    Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response, Rgba,
     Rounding, Sense, Shape, Stroke, TextureHandle, Ui, Vec2, Widget,
 };
-use std::default::Default;
+
+use crate::types::annotation::{Annotation, Position};
+use crate::types::icons::*;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mode {
@@ -308,6 +310,7 @@ impl Editor {
             a.update_ending(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if a.starting_pos != a.ending_pos {
+                    a.consolidate();
                     self.annotations
                         .push(self.current_annotation.clone().unwrap());
                 }
