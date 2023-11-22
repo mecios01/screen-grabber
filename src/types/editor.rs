@@ -105,13 +105,12 @@ impl Editor {
             .collect();
         painter.extend(shapes);
 
-        if self.current_annotation.is_some() {
-            painter.add(self.current_annotation.as_ref().unwrap().render(
-                to_screen.scale()[0],
-                to_screen,
-                painter,
-                true,
-            ));
+        if let Some(a) = &self.current_annotation {
+            painter.add(a.render(to_screen.scale()[0], to_screen, painter, true));
+        }
+
+        if let Some(c) = &self.current_crop {
+            painter.add(c.render(to_screen.scale()[0], to_screen, painter, true));
         }
     }
 
@@ -131,7 +130,7 @@ impl Editor {
     }
 
     fn manage_crop(&mut self, ui: &mut Ui, to_original: RectTransform) {
-        if let Some(Annotation::Crop(ref mut c)) = self.current_annotation.as_mut() {
+        if let Some(Annotation::Crop(ref mut c)) = self.current_crop.as_mut() {
             if c.resizing {
                 let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
                 let Some(input) = input_res.interact_pointer_pos() else {
@@ -187,9 +186,6 @@ impl Editor {
                     c.reset_points();
                 }
             });
-            // if input_res.dragged_by(PointerButton::Primary) {
-            //     c.update(pos);
-            // }
         } else {
             let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
             let Some(input) = input_res.interact_pointer_pos() else {
@@ -197,7 +193,7 @@ impl Editor {
             };
             let pos = to_original.transform_pos_clamped(input);
             if input_res.drag_started_by(PointerButton::Primary) {
-                self.current_annotation = Some(Annotation::crop(pos));
+                self.current_crop = Some(Annotation::crop(pos));
             }
         }
     }
@@ -453,6 +449,14 @@ impl Editor {
             match mode {
                 Mode::Undo => self.undo(),
                 Mode::Redo => self.redo(),
+                Mode::Crop => {
+                    if self.mode == mode {
+                        self.mode = Mode::Idle;
+                        self.current_crop = None
+                    } else {
+                        self.mode = mode;
+                    }
+                }
                 _ => {
                     if self.mode == mode {
                         self.mode = Mode::Idle;
