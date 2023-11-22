@@ -1,6 +1,7 @@
 use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
 use egui::epaint::TextShape;
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
+use skia_safe::Color;
 
 #[derive(Debug, Clone)]
 pub enum Annotation {
@@ -28,7 +29,7 @@ impl Annotation {
     }
 
     pub fn rect(pos: Pos2, color: Color32, fill_color: Option<Color32>, thickness: f32) -> Self {
-        Self::Rect(RectAnnotation::new(pos, pos, color, fill_color, thickness))
+        Self::Rect(RectAnnotation::new(pos, pos, color, thickness))
     }
 
     pub fn arrow(starting: Pos2, color: Color32, thickenss: f32) -> Self {
@@ -126,7 +127,7 @@ pub struct CircleAnnotation {
 }
 
 impl CircleAnnotation {
-    pub fn new(center: Pos2, color: Color32, width: f32) -> Self {
+    pub fn new(center: Pos2, color: Color32, width: f32, fill_color: Option<Color32>) -> Self {
         Self {
             center,
             radius: 0.0,
@@ -166,6 +167,7 @@ impl RectAnnotation {
             p2,
             color,
             width,
+            fill_color: None,
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {

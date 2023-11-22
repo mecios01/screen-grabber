@@ -3,7 +3,7 @@ use crate::types::icons::*;
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    pos2, Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
+    pos2, Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response, Rgba,
     Rounding, Sense, Shape, Stroke, TextureHandle, Ui, Vec2, Widget,
 };
 use std::default::Default;
@@ -242,6 +242,7 @@ impl Editor {
                 pos,
                 self.current_color,
                 self.current_width,
+                None,
             ));
             return;
         }
@@ -269,6 +270,7 @@ impl Editor {
             self.current_annotation = Some(Annotation::rect(
                 pos,
                 self.current_color,
+                None,
                 self.current_width,
             ));
             return;
@@ -400,7 +402,7 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input_res.interact_pointer_pos().unwrap());
         if input_res.clicked() {
-            self.current_annotation = Some(Annotation::text(pos, self.current_color));
+            self.current_annotation = Some(Annotation::text(pos, self.current_color, 32.0));
             return;
         }
     }

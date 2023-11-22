@@ -72,6 +72,7 @@ impl Rasterizer {
             Annotation::Arrow(arrow) => self.draw_arrow(arrow),
             Annotation::Pencil(pencil) => self.draw_pencil(pencil),
             Annotation::Text(text) => self.draw_text(text),
+            _ => {}
         })
     }
     //export the image into the given format (or PNG then convert)
@@ -122,7 +123,7 @@ impl Rasterizer {
             circle.color.b(),
         );
         paint.set_color(color);
-        paint.set_stroke_width(circle.thickness);
+        paint.set_stroke_width(circle.width);
         let style = match circle.fill_color.as_ref() {
             Some(_) => PaintStyle::StrokeAndFill,
             None => PaintStyle::Stroke,
@@ -148,7 +149,7 @@ impl Rasterizer {
             None => PaintStyle::Stroke,
         };
         paint.set_style(style);
-        paint.set_stroke_width(rect.thickness);
+        paint.set_stroke_width(rect.width);
 
         let size = (rect.p2.x - rect.p1.x, rect.p2.y - rect.p1.y);
         assert!(
@@ -172,7 +173,7 @@ impl Rasterizer {
         );
         paint.set_color(color);
         paint.set_style(PaintStyle::Stroke);
-        paint.set_stroke_width(line.thickness);
+        paint.set_stroke_width(line.width);
 
         canvas.draw_line(
             (line.starting_pos.x, line.starting_pos.y),
@@ -192,7 +193,7 @@ impl Rasterizer {
         );
         paint.set_color(color);
         paint.set_style(PaintStyle::Stroke);
-        paint.set_stroke_width(arrow.thickness);
+        paint.set_stroke_width(arrow.width);
         paint.set_stroke_cap(Cap::Round);
         canvas.draw_line(
             (arrow.starting_pos.x, arrow.starting_pos.y),
@@ -249,7 +250,7 @@ impl Rasterizer {
             pencil.color.b(),
         );
         paint.set_color(color);
-        paint.set_stroke_width(pencil.thickness);
+        paint.set_stroke_width(pencil.width);
         paint.set_style(PaintStyle::Stroke);
         let points = pencil
             .points
