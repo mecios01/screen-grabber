@@ -189,8 +189,8 @@ impl Editor {
                             c.p2 += point_response.drag_delta() * to_original.scale()[0];
                         }
                     }
-                    c.p1 = c.p1.clamp(to_original.to().min, to_original.to().max);
-                    c.p2 = c.p2.clamp(to_original.to().min, to_original.to().max);
+                    c.p1 = to_original.to().clamp(c.p1);
+                    c.p2 = to_original.to().clamp(c.p2);
                 }
 
                 if point_response.drag_released_by(PointerButton::Primary) {
