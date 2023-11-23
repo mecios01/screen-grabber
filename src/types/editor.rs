@@ -189,7 +189,10 @@ impl Editor {
                             c.p2 += point_response.drag_delta() * to_original.scale()[0];
                         }
                     }
+                    c.p1 = c.p1.clamp(to_original.to().min, to_original.to().max);
+                    c.p2 = c.p2.clamp(to_original.to().min, to_original.to().max);
                 }
+
                 if point_response.drag_released_by(PointerButton::Primary) {
                     c.reset_points();
                 }
@@ -525,18 +528,14 @@ impl Editor {
             self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
+        let alpha: Alpha = Alpha::OnlyBlend;
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }
 
     pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=15.0))
+        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=100.0))
             .on_hover_text("Width");
         ui.color_edit_button_srgba(color);
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
-        let alpha: Alpha = Alpha::OnlyBlend;
     }
 
     fn undo(&mut self) {
