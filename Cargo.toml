@@ -16,6 +16,8 @@ serde = { version = "1.0.190", features = ["derive"] }
 confy = { version = "0.5.1", features = ["yaml_conf"], default-features = false }
 skia-safe = { version = "0.68.0", features = ["textlayout"] }
 image = "0.24.7"
+chrono = "0.4.31"
+rfd = { version = "0.12.1", default-features = false, features = ["xdg-portal"] }
 
 [profile.release]
 strip = true
