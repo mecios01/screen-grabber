@@ -11,7 +11,7 @@ use crate::pages::types::{PageType, SettingType};
 use crate::types::config::Config;
 use crate::types::editor::Editor;
 use crate::types::rasterizer::Rasterizer;
-use crate::types::utils::export_color_image_to_skia_image;
+use crate::types::utils::{export_color_image_to_skia_image, save_dialog};
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -105,6 +105,11 @@ impl ScreenGrabber {
         if !self.has_captured_image() {
             return None;
         }
+        let path = save_dialog();
+        if path.is_none() {
+            return None;
+        }
+
         //Here we should get the output path (from config or rfd)
         let size = self
             .captured_image
@@ -121,7 +126,7 @@ impl ScreenGrabber {
             let mut rasterizer = Rasterizer::new((size[0] as u32, size[1] as u32), (1920, 1080));
             rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
             rasterizer.add_annotations(annotations.as_ref());
-            match rasterizer.export("./out.png") {
+            match rasterizer.export(&path.unwrap()) {
                 Some(_) => Some(()),
                 None => None,
             }
