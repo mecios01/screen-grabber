@@ -14,18 +14,22 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
         app.capture(ctx);
     }
     egui::CentralPanel::default().show(ctx, |ui| {
-        if ui.button("Launcher").clicked() {
-            app.set_page(PageType::Launcher);
-        }
-        if ui.button("Save as").clicked() {
-            app.save_as();
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Launcher").clicked() {
+                app.set_page(PageType::Launcher);
+            }
+            if ui.button("Save as").clicked() {
+                app.save_as();
+            }
+            app.editor.show_fill_dropdown(ui);
+        });
         egui::SidePanel::left("left-panel-toolbox")
             .resizable(false)
             .max_width(22f32)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     app.editor.show_tool_buttons(ui);
+                    app.editor.show_fill_color_picker(ui);
                 })
             });
         if app.has_captured_image() {
