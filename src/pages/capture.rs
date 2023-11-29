@@ -1,13 +1,14 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Image, Layout, Pos2, Widget};
+use egui::{Image, Layout, Pos2, ViewportCommand, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     if app.texture_image.is_none() {
-        _frame.set_minimized(true);
-        _frame.set_always_on_top(false);
+        ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
+        // _frame.set_minimized(true);
+        // _frame.set_always_on_top(false);
         app.is_minimized = true;
     }
     if !app.has_captured_image() {

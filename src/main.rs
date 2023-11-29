@@ -5,11 +5,11 @@ pub mod types;
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
-        decorated: true,
-        transparent: true,
-        mouse_passthrough: false, // Changing this to true makes window fully invisible
-        min_window_size: Some(egui::vec2(500.0, 400.0)),
-        initial_window_size: Some(egui::vec2(500.0, 400.0)),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([500.0, 400.0])
+            .with_min_inner_size([500.0, 400.0])
+            .with_transparent(true)
+            .with_mouse_passthrough(true),
         ..Default::default()
     };
     // native_options.transparent = true;
