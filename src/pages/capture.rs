@@ -1,5 +1,5 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Layout, Pos2, Shape, Widget};
+use egui::{Layout, Pos2, Shape, ViewportCommand, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
@@ -7,8 +7,9 @@ use crate::types::screen_grabber::ScreenGrabber;
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // ctx.tessellation_options_mut(|ts| ts.debug_paint_clip_rects = false);
     if app.texture_image.is_none() {
-        _frame.set_minimized(true);
-        _frame.set_always_on_top(false);
+        ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
+        // TODO : add equivalent command for always_on_top if needed (after upgrading to egui 0.24.0)
+        // ctx.send_viewport_cmd(ViewportCommand::
         app.is_minimized = true;
     }
     if !app.has_captured_image() {

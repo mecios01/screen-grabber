@@ -66,6 +66,7 @@ impl ScreenGrabber {
         }
 
         Default::default()
+
     }
     pub fn set_page(&mut self, page: PageType) {
         self.current_page = page
@@ -104,10 +105,6 @@ impl ScreenGrabber {
         self.active_section = session
     }
 
-    // pub fn load_config(&mut self) -> Result<(), confy::ConfyError> {
-    //     self.config = confy::load("screen-grabber", "config")?;
-    //     Ok(())
-    // }
     pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
         println!("{}", &self.config.get_example_test());
         confy::store("screen-grabber", "config", &self.config)?;
