@@ -1,5 +1,7 @@
 use std::io::Cursor;
+use std::path::PathBuf;
 
+use chrono::Utc;
 use egui::ColorImage;
 use image::{ImageOutputFormat, RgbaImage};
 use skia_safe::{Data, Image};
@@ -30,4 +32,20 @@ pub fn export_color_image_to_skia_image(ci: &ColorImage) -> Option<Image> {
     } else {
         None
     }
+}
+
+pub fn save_dialog() -> Option<PathBuf> {
+    let path = std::env::current_dir().unwrap();
+    let dt = Utc::now();
+
+    let timestamp = dt.format("%Y%m%dT%H%M%S");
+    let res = rfd::FileDialog::new()
+        .set_file_name(format!("{}", timestamp))
+        .add_filter("png", &["png"])
+        .add_filter("jpg", &["jpg"])
+        .add_filter("ico", &["ico"])
+        .add_filter("gif", &["gif"])
+        .set_directory(&path)
+        .save_file();
+    res
 }

@@ -4,7 +4,7 @@ use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
     Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
-    Rgba, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
+    Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
 };
 
 use crate::types::annotation::{Annotation, Position};
@@ -42,8 +42,9 @@ pub struct Editor {
     pub annotations: Vec<Annotation>,
     pub current_color: Color32,
     pub current_width: f32,
-    pub current_fill_color: Option<Rgba>,
+    pub current_fill_color: Color32,
     pub current_font_size: f32,
+    pub fill_color_enabled: bool,
 }
 
 impl Default for Editor {
@@ -58,8 +59,9 @@ impl Default for Editor {
             undone_annotations: Vec::new(),
             current_color: Color32::RED,
             current_width: 7.5,
-            current_fill_color: None,
+            current_fill_color: Color32::TRANSPARENT,
             current_font_size: 16.0,
+            fill_color_enabled: false,
         }
     }
 }
@@ -285,14 +287,17 @@ impl Editor {
         let Some(input) = input_res.interact_pointer_pos() else {
             return;
         };
-
+        let fill = match self.fill_color_enabled {
+            true => self.current_fill_color,
+            false => Color32::TRANSPARENT,
+        };
         let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started_by(PointerButton::Primary) {
             self.current_annotation = Some(Annotation::circle(
                 pos,
                 self.current_color,
                 self.current_width,
-                None,
+                fill,
             ));
             return;
         }
@@ -317,10 +322,14 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started_by(PointerButton::Primary) {
+            let fill = match self.fill_color_enabled {
+                true => self.current_fill_color,
+                false => Color32::TRANSPARENT,
+            };
             self.current_annotation = Some(Annotation::rect(
                 pos,
                 self.current_color,
-                None,
+                fill,
                 self.current_width,
             ));
             return;
@@ -522,16 +531,16 @@ impl Editor {
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
         //dark mode
         if ui.visuals().dark_mode {
+            self.tool_button(ui, &ARROW_DARK, Mode::DrawArrow);
             self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
             self.tool_button(ui, &CROP_DARK, Mode::Crop);
             self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
             self.tool_button(ui, &ERASER_DARK, Mode::Erase);
             self.tool_button(ui, &HIGHLIGHT_DARK, Mode::Highlight);
             self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
-            self.tool_button(ui, &ARROW_DARK, Mode::DrawArrow);
+            self.tool_button(ui, &MOVE_DARK, Mode::Move);
             self.tool_button(ui, &PENCIL_DARK, Mode::DrawFree);
             self.tool_button(ui, &PIXELATE_DARK, Mode::DrawPixelate);
-            self.tool_button(ui, &MOVE_DARK, Mode::Move);
             self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
             self.tool_button(ui, &SELECT_DARK, Mode::Select);
             self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
@@ -567,11 +576,48 @@ impl Editor {
         let alpha: Alpha = Alpha::OnlyBlend;
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }
+    pub fn show_fill_dropdown(&mut self, ui: &mut Ui) {
+        let enabled_stoke = ui.visuals().widgets.hovered.fg_stroke;
+        let mut fill = egui::Button::new("Color");
+        let mut none = egui::Button::new("None");
 
+        if self.fill_color_enabled {
+            fill = fill.stroke(enabled_stoke);
+        } else {
+            none = none.stroke(enabled_stoke);
+        }
+
+        ui.menu_button("Fill mode", |ui| {
+            if fill.ui(ui).clicked() {
+                self.fill_color_enabled = true;
+            };
+            if none.ui(ui).clicked() {
+                self.fill_color_enabled = false;
+            }
+        });
+    }
+
+    pub fn show_fill_color_picker(&mut self, ui: &mut Ui) {
+        ui.add_enabled(self.fill_color_enabled, |ui: &mut Ui| {
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut self.current_fill_color,
+                Alpha::OnlyBlend,
+            )
+        })
+        .on_hover_text("Fill")
+        .on_disabled_hover_text("Fill (disabled)");
+    }
     pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
         ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=100.0))
             .on_hover_text("Width");
-        ui.color_edit_button_srgba(color);
+        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+        let left = stroke_rect.left_center();
+        let right = stroke_rect.right_center();
+        ui.painter().line_segment([left, right], (*width, *color));
+        egui::color_picker::color_edit_button_srgba(ui, color, Alpha::OnlyBlend)
+            .on_hover_text("Stroke");
+        ui.add_space(ui.spacing().item_spacing.y)
     }
 
     fn undo(&mut self, ui: &mut Ui) {

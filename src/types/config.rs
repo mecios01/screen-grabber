@@ -13,9 +13,11 @@ pub enum Status {
 pub struct Config {
     #[serde(skip)]
     pub status: Status,
+    // 1379144576
     //general
     pub start_minimized: bool,
     example_text: String,
+    //keybindings
     //appearance
     // theme: Visuals,
 }
@@ -28,6 +30,7 @@ impl Default for Config {
             //general
             start_minimized: false,
             example_text: "".into(),
+            //keybindings
             //appearance
             // theme: Visuals::dark(),
         }

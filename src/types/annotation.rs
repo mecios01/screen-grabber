@@ -1,7 +1,6 @@
 use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
-use egui::epaint::TextShape;
+use egui::epaint::{CircleShape, RectShape, TextShape};
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
-use skia_safe::Color;
 
 #[derive(Debug, Clone)]
 pub enum Annotation {
@@ -19,17 +18,12 @@ impl Annotation {
     pub fn segment(starting: Pos2, color: Color32, width: f32) -> Self {
         Self::Segment(SegmentAnnotation::new(starting, color, width))
     }
-    pub fn circle(
-        center: Pos2,
-        color: Color32,
-        thickness: f32,
-        fill_color: Option<Color32>,
-    ) -> Self {
+    pub fn circle(center: Pos2, color: Color32, thickness: f32, fill_color: Color32) -> Self {
         Self::Circle(CircleAnnotation::new(center, color, thickness, fill_color))
     }
 
-    pub fn rect(pos: Pos2, color: Color32, fill_color: Option<Color32>, thickness: f32) -> Self {
-        Self::Rect(RectAnnotation::new(pos, pos, color, thickness))
+    pub fn rect(pos: Pos2, color: Color32, fill_color: Color32, thickness: f32) -> Self {
+        Self::Rect(RectAnnotation::new(pos, pos, thickness, color, fill_color))
     }
 
     pub fn arrow(starting: Pos2, color: Color32, thickenss: f32) -> Self {
@@ -123,11 +117,11 @@ pub struct CircleAnnotation {
     pub radius: f32,
     pub color: Color32,
     pub width: f32,
-    pub fill_color: Option<Color32>,
+    pub fill_color: Color32,
 }
 
 impl CircleAnnotation {
-    pub fn new(center: Pos2, color: Color32, width: f32, fill_color: Option<Color32>) -> Self {
+    pub fn new(center: Pos2, color: Color32, width: f32, fill_color: Color32) -> Self {
         Self {
             center,
             radius: 0.0,
@@ -137,11 +131,12 @@ impl CircleAnnotation {
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
-        Shape::circle_stroke(
-            rect_transform.transform_pos(self.center),
-            self.radius * scaling,
-            Stroke::new(self.width * scaling, self.color),
-        )
+        Shape::Circle(CircleShape {
+            center: rect_transform.transform_pos(self.center),
+            radius: self.radius * scaling,
+            fill: self.fill_color,
+            stroke: Stroke::new(self.width * scaling, self.color),
+        })
     }
     pub fn update_center(&mut self, center: Pos2) {
         self.center = center;
@@ -157,28 +152,29 @@ pub struct RectAnnotation {
     pub p2: Pos2,
     pub color: Color32,
     pub width: f32,
-    pub fill_color: Option<Color32>,
+    pub fill_color: Color32,
 }
 
 impl RectAnnotation {
-    pub fn new(p1: Pos2, p2: Pos2, color: Color32, width: f32) -> Self {
+    pub fn new(p1: Pos2, p2: Pos2, width: f32, color: Color32, fill_color: Color32) -> Self {
         Self {
             p1,
             p2,
             color,
             width,
-            fill_color: None,
+            fill_color,
         }
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
-        Shape::rect_stroke(
+        Shape::Rect(RectShape::new(
             Rect::from_two_pos(
                 rect_transform.transform_pos(self.p1),
                 rect_transform.transform_pos(self.p2),
             ),
             0.0,
+            self.fill_color,
             Stroke::new(self.width * scaling, self.color),
-        )
+        ))
     }
     pub fn update_p2(&mut self, p2: Pos2) {
         self.p2 = p2;

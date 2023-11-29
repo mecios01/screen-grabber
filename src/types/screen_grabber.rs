@@ -13,7 +13,7 @@ use crate::pages::types::{PageType, SettingType};
 use crate::types::config::Config;
 use crate::types::editor::Editor;
 use crate::types::rasterizer::Rasterizer;
-use crate::types::utils::export_color_image_to_skia_image;
+use crate::types::utils::{export_color_image_to_skia_image, save_dialog};
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -63,6 +63,7 @@ impl ScreenGrabber {
         }
 
         Default::default()
+
     }
     pub fn set_page(&mut self, page: PageType) {
         self.current_page = page
@@ -101,6 +102,11 @@ impl ScreenGrabber {
         if !self.has_captured_image() {
             return None;
         }
+        let path = save_dialog();
+        if path.is_none() {
+            return None;
+        }
+
         //Here we should get the output path (from config or rfd)
         let size = self
             .editor
@@ -118,7 +124,7 @@ impl ScreenGrabber {
             let mut rasterizer = Rasterizer::new((size[0] as u32, size[1] as u32), (1920, 1080));
             rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
             rasterizer.add_annotations(annotations.as_ref());
-            match rasterizer.export("./out.png") {
+            match rasterizer.export(&path.unwrap()) {
                 Some(_) => Some(()),
                 None => None,
             }
@@ -131,10 +137,6 @@ impl ScreenGrabber {
         self.active_section = session
     }
 
-    // pub fn load_config(&mut self) -> Result<(), confy::ConfyError> {
-    //     self.config = confy::load("screen-grabber", "config")?;
-    //     Ok(())
-    // }
     pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
         println!("{}", &self.config.get_example_test());
         confy::store("screen-grabber", "config", &self.config)?;
