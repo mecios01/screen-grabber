@@ -22,11 +22,6 @@ pub const APP_KEY: &str = "screen-grabber";
 pub struct ScreenGrabber {
     //it should be an entire config loaded at start of the app
     current_page: PageType,
-    //image captured
-    #[serde(skip)]
-    pub texture_image: Option<TextureHandle>,
-    #[serde(skip)]
-    pub captured_image: Option<ColorImage>,
     pub is_minimized: bool,
     #[serde(skip)]
     pub editor: Editor,
@@ -45,8 +40,6 @@ impl Default for ScreenGrabber {
         Self {
             current_page: PageType::Launcher,
             is_minimized: false,
-            texture_image: None,
-            captured_image: None,
             editor: Editor::default(),
             //settings
             active_section: SettingType::General,
@@ -76,17 +69,17 @@ impl ScreenGrabber {
     }
     #[inline]
     pub fn has_captured_image(&self) -> bool {
-        self.texture_image.is_some()
+        self.editor.texture.is_some()
     }
 
     pub fn get_original_size(&self) -> Vec2 {
-        if let Some(image) = &self.texture_image {
+        if let Some(image) = &self.editor.texture {
             return image.size_vec2();
         }
         Vec2::ZERO
     }
     pub fn set_new_captured_image(&mut self, image: TextureHandle) {
-        self.texture_image = Some(image);
+        self.editor.texture = Some(image);
         self.is_minimized = false;
     }
     pub fn capture(&mut self, ctx: &egui::Context) {
@@ -99,12 +92,9 @@ impl ScreenGrabber {
         .join()
         .unwrap();
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
-        self.texture_image = Some(id.clone());
-        self.captured_image = Some(image.clone());
-        self.editor.texture = Some(id.clone());
-        self.editor.captured_image = Some(image.clone());
-        self.editor.original_rect = Rect::from_min_size(Pos2::ZERO, id.size_vec2());
         self.editor.crop_rect = Rect::from_min_size(Pos2::ZERO, id.size_vec2());
+        self.editor.texture = Some(id);
+        self.editor.captured_image = Some(image);
     }
 
     pub fn save_as(&mut self) -> Option<()> {
@@ -113,12 +103,13 @@ impl ScreenGrabber {
         }
         //Here we should get the output path (from config or rfd)
         let size = self
+            .editor
             .captured_image
             .as_ref()
             .expect("cannot get captured image")
             .size
             .clone();
-        let image = export_color_image_to_skia_image(&self.captured_image.as_ref().unwrap());
+        let image = export_color_image_to_skia_image(&self.editor.captured_image.as_ref().unwrap());
         if image.is_none() {
             return None;
         }
