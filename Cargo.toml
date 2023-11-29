@@ -16,3 +16,13 @@ serde = { version = "1.0.190", features = ["derive"] }
 confy = { version = "0.5.1", features = ["yaml_conf"], default-features = false }
 global-hotkey = "0.4.1"
 keyboard-types = "0.7.0"
+skia-safe = { version = "0.68.0", features = ["textlayout"] }
+image = "0.24.7"
+
+[profile.release]
+strip = true
+opt-level = 3
+overflow-checks = false
+debug = false
+lto = true
+panic = "abort"

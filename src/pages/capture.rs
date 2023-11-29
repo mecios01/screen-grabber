@@ -1,15 +1,14 @@
 use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Layout, Pos2, Shape, ViewportCommand, Widget};
+use egui::{Image, Layout, Pos2, ViewportCommand, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    // ctx.tessellation_options_mut(|ts| ts.debug_paint_clip_rects = false);
     if app.texture_image.is_none() {
         ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
-        // TODO : add equivalent command for always_on_top if needed (after upgrading to egui 0.24.0)
-        // ctx.send_viewport_cmd(ViewportCommand::
+        // _frame.set_minimized(true);
+        // _frame.set_always_on_top(false);
         app.is_minimized = true;
     }
     if !app.has_captured_image() {
@@ -18,6 +17,9 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
     egui::CentralPanel::default().show(ctx, |ui| {
         if ui.button("Launcher").clicked() {
             app.set_page(PageType::Launcher);
+        }
+        if ui.button("Save as").clicked() {
+            app.save_as();
         }
         egui::SidePanel::left("left-panel-toolbox")
             .resizable(false)
@@ -29,38 +31,24 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                let image_res = egui::Image::new(&app.texture_image.clone().unwrap())
-                    .max_size(ui.available_size())
-                    .maintain_aspect_ratio(true)
-                    .ui(ui);
+                // let x = app.captured_image.clone().unwrap().region(
+                //     &Rect::from_two_pos(Pos2::new(0.0, 0.0), Pos2::new(100.0, 1000.0)),
+                //     None,
+                // );
+                // let y = ctx.load_texture("screenshot", x, TextureOptions::default());
 
+                let image_res = Image::new(&app.texture_image.clone().unwrap())
+                    //let image_res = Image::new(&y.clone())
+                    .maintain_aspect_ratio(true)
+                    .max_size(ui.available_size())
+                    .ui(ui);
                 let original_rect =
                     Rect::from_min_size(Pos2::ZERO, app.texture_image.clone().unwrap().size_vec2());
                 let to_screen = RectTransform::from_to(original_rect, image_res.rect);
-                let scaling = to_screen.scale()[0]; //res.rect.size().x / app.texture_image.clone().unwrap().size()[0] as f32;
-                                                    //ctx is an Arc so clone === copy pointer
                 let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
-                // let input_res = ui.interact(image_res.rect, image_res.id, Sense::click_and_drag());
-                //manage_input(app, input_res, to_screen.inverse());
-                app.editor.manage_input(ui, to_screen.inverse());
-
-                let shapes: Vec<Shape> = app
-                    .editor
-                    .annotations
-                    .iter()
-                    .map(|a| a.render(scaling, to_screen))
-                    .collect();
-                painter.extend(shapes);
-
-                if app.editor.current_annotation.is_some() {
-                    painter.add(
-                        app.editor
-                            .current_annotation
-                            .as_mut()
-                            .unwrap()
-                            .render(scaling, to_screen),
-                    );
-                }
+                app.editor
+                    .manage_input(&ctx, ui, to_screen.inverse(), &painter);
+                app.editor.manage_render(&painter, to_screen);
             });
         }
     });

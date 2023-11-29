@@ -1,6 +1,6 @@
 use std::thread;
 
-use egui::{ColorImage, TextureHandle, TextureOptions, Vec2};
+use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Vec2};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +10,8 @@ use crate::pages::settings::settings_page;
 use crate::pages::types::{PageType, SettingType};
 use crate::types::config::Config;
 use crate::types::editor::Editor;
+use crate::types::rasterizer::Rasterizer;
+use crate::types::utils::export_color_image_to_skia_image;
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -100,6 +102,34 @@ impl ScreenGrabber {
         self.captured_image = Some(image);
     }
 
+    pub fn save_as(&mut self) -> Option<()> {
+        if !self.has_captured_image() {
+            return None;
+        }
+        //Here we should get the output path (from config or rfd)
+        let size = self
+            .captured_image
+            .as_ref()
+            .expect("cannot get captured image")
+            .size
+            .clone();
+        let image = export_color_image_to_skia_image(&self.captured_image.as_ref().unwrap());
+        if image.is_none() {
+            return None;
+        }
+        let annotations = self.editor.annotations.clone();
+        thread::spawn(move || {
+            let mut rasterizer = Rasterizer::new((size[0] as u32, size[1] as u32), (1920, 1080));
+            rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
+            rasterizer.add_annotations(annotations.as_ref());
+            match rasterizer.export("./out.png") {
+                Some(_) => Some(()),
+                None => None,
+            }
+        })
+        .join()
+        .unwrap()
+    }
     ///settings (to understand if this is the right place for setters of settings)
     pub fn set_active_section(&mut self, session: SettingType) {
         self.active_section = session
@@ -126,20 +156,20 @@ impl eframe::App for ScreenGrabber {
     }
 }
 
-fn set_font_style(_ctx: &egui::Context) {
+fn set_font_style(ctx: &egui::Context) {
     //Defaults are pretty good but in case we want to change them or allow the user to do so this
     // is the way to do it (at least one possible way)
 
-    // use FontFamily::{Monospace, Proportional};
-    //
-    // let mut style = (*ctx.style()).clone();
-    // style.text_styles = [
-    //     (TextStyle::Heading, FontId::new(25.0, Proportional)),
-    //     (TextStyle::Body, FontId::new(16.0, Proportional)),
-    //     (TextStyle::Monospace, FontId::new(16.0, Monospace)),
-    //     (TextStyle::Button, FontId::new(22.0, Proportional)),
-    //     (TextStyle::Small, FontId::new(12.0, Proportional)),
-    // ]
-    // .into();
-    // ctx.set_style(style);
+    use FontFamily::{Monospace, Proportional};
+
+    let mut style = (*ctx.style()).clone();
+    style.text_styles = [
+        (TextStyle::Heading, FontId::new(16.0, Proportional)),
+        (TextStyle::Body, FontId::new(16.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+        (TextStyle::Button, FontId::new(16.0, Proportional)),
+        (TextStyle::Small, FontId::new(16.0, Proportional)),
+    ]
+    .into();
+    ctx.set_style(style);
 }

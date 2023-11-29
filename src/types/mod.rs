@@ -5,3 +5,5 @@ pub mod screen_grabber;
 pub mod annotation;
 
 pub mod config;
+pub mod rasterizer;
+pub mod utils;
