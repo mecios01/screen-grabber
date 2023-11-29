@@ -191,7 +191,10 @@ impl Editor {
                             c.p2 += point_response.drag_delta() * to_original.scale()[0];
                         }
                     }
+                    c.p1 = to_original.to().clamp(c.p1);
+                    c.p2 = to_original.to().clamp(c.p2);
                 }
+
                 if point_response.drag_released_by(PointerButton::Primary) {
                     c.reset_points();
                 }
@@ -534,6 +537,7 @@ impl Editor {
             self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
+        let alpha: Alpha = Alpha::OnlyBlend;
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }
     pub fn show_fill_dropdown(&mut self, ui: &mut Ui) {
@@ -569,7 +573,7 @@ impl Editor {
         .on_disabled_hover_text("Fill (disabled)");
     }
     pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=15.0))
+        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=100.0))
             .on_hover_text("Width");
         let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
         let left = stroke_rect.left_center();
