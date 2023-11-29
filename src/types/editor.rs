@@ -3,8 +3,8 @@ use std::default::Default;
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    Color32, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response, Rgba,
-    Rounding, Sense, Shape, Stroke, TextureHandle, Ui, Vec2, Widget,
+    Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
+    Rgba, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
 };
 
 use crate::types::annotation::{Annotation, Position};
@@ -33,32 +33,34 @@ pub enum Mode {
 }
 
 pub struct Editor {
+    pub captured_image: Option<ColorImage>,
     pub texture: Option<TextureHandle>,
     pub mode: Mode,
-    pub current_crop: Option<Annotation>,
+    pub crop_rect: Rect,
+    pub original_rect: Rect,
     pub current_annotation: Option<Annotation>,
     pub undone_annotations: Vec<Annotation>,
     pub annotations: Vec<Annotation>,
     pub current_color: Color32,
     pub current_width: f32,
     pub current_fill_color: Option<Rgba>,
-    pub current_thickness: f32,
     pub current_font_size: f32,
 }
 
 impl Default for Editor {
     fn default() -> Self {
         Self {
+            captured_image: None,
             texture: None,
             mode: Mode::Idle,
+            crop_rect: Rect::NOTHING,
+            original_rect: Rect::NOTHING,
             current_annotation: None,
             annotations: Vec::new(),
-            current_color: Color32::RED,
             undone_annotations: Vec::new(),
+            current_color: Color32::RED,
             current_width: 7.5,
-            current_crop: None,
             current_fill_color: None,
-            current_thickness: 8.0,
             current_font_size: 16.0,
         }
     }
@@ -66,15 +68,24 @@ impl Default for Editor {
 
 impl Editor {
     pub fn manage(&mut self, ui: &mut Ui, ctx: &egui::Context) {
+        if let Some(c) = self
+            .current_annotation
+            .iter()
+            .filter(|&a| matches!(a, Annotation::Crop(_)))
+            .last()
+        {}
+
         let image_res = Image::new(&self.texture.clone().unwrap())
             //let image_res = Image::new(&y.clone())
             .maintain_aspect_ratio(true)
             .max_size(ui.available_size())
+            .shrink_to_fit()
             .ui(ui);
-        let original_rect =
-            Rect::from_min_size(Pos2::ZERO, self.texture.clone().unwrap().size_vec2());
-        let to_screen = RectTransform::from_to(original_rect, image_res.rect);
-        let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
+        println!("{:?}", self.crop_rect);
+        let to_screen = RectTransform::from_to(self.crop_rect, image_res.rect);
+        let painter = Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
+        self.manage_input(ctx, ui, to_screen.inverse(), &painter);
+        self.manage_render(&painter, to_screen);
     }
     pub fn manage_input(
         &mut self,
@@ -84,7 +95,7 @@ impl Editor {
         painter: &Painter,
     ) {
         match self.mode {
-            Mode::Crop => self.manage_crop(ui, to_original),
+            Mode::Crop => self.manage_crop(ctx, ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
             Mode::DrawEllipse => {}
@@ -109,16 +120,13 @@ impl Editor {
         let shapes: Vec<Shape> = self
             .annotations
             .iter()
+            .filter(|&a| !matches!(a, Annotation::Crop(_)))
             .map(|a| a.render(to_screen.scale()[0], to_screen, painter, false))
             .collect();
         painter.extend(shapes);
 
         if let Some(a) = &self.current_annotation {
             painter.add(a.render(to_screen.scale()[0], to_screen, painter, true));
-        }
-
-        if let Some(c) = &self.current_crop {
-            painter.add(c.render(to_screen.scale()[0], to_screen, painter, true));
         }
     }
 
@@ -128,8 +136,9 @@ impl Editor {
         ui: &mut Ui,
         id: Id,
         rect_transform: RectTransform,
+        sense: Sense,
     ) -> (Response, Option<Pos2>) {
-        let input_res = ui.interact(rect, id, Sense::click_and_drag());
+        let input_res = ui.interact(rect, id, sense);
         let Some(input) = input_res.interact_pointer_pos() else {
             return (input_res, None);
         };
@@ -137,8 +146,24 @@ impl Editor {
         return (input_res, Some(pos));
     }
 
-    fn manage_crop(&mut self, ui: &mut Ui, to_original: RectTransform) {
-        if let Some(Annotation::Crop(ref mut c)) = self.current_crop.as_mut() {
+    fn update_texture(&mut self, ctx: &egui::Context, crop: Option<Rect>) {
+        let Some(image) = self.captured_image.clone() else {
+            panic!()
+        };
+        if let Some(crop_rect) = crop {
+            self.crop_rect = crop_rect;
+        } else {
+            self.crop_rect = Rect::from_two_pos(
+                Pos2::ZERO,
+                Pos2::new(image.width() as f32, image.height() as f32),
+            )
+        }
+        let cropped_image = image.region(&self.crop_rect, None);
+        self.texture = Some(ctx.load_texture("image", cropped_image, TextureOptions::default()));
+    }
+    fn manage_crop(&mut self, ctx: &egui::Context, ui: &mut Ui, to_original: RectTransform) {
+        let mut crop = None;
+        if let Some(Annotation::Crop(ref mut c)) = self.current_annotation.as_mut() {
             if c.resizing {
                 let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
                 let Some(input) = input_res.interact_pointer_pos() else {
@@ -150,6 +175,8 @@ impl Editor {
                     if c.p1 != c.p2 {
                         c.update_resize(false);
                         c.reset_points();
+                    } else {
+                        self.current_annotation = None;
                     }
                 }
                 return;
@@ -197,6 +224,21 @@ impl Editor {
                     c.reset_points();
                 }
             });
+            let x = ui.input(|s| s.events.clone());
+            for event in &x {
+                match event {
+                    Event::Key {
+                        key: Key::Enter,
+                        pressed: true,
+                        ..
+                    } => {
+                        c.reset_points();
+                        c.update_finished(true);
+                        crop = Some(c.get_rect());
+                    }
+                    _ => {}
+                }
+            }
         } else {
             let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
             let Some(input) = input_res.interact_pointer_pos() else {
@@ -204,10 +246,18 @@ impl Editor {
             };
             let pos = to_original.transform_pos_clamped(input);
             if input_res.drag_started_by(PointerButton::Primary) {
-                self.current_crop = Some(Annotation::crop(pos));
+                self.current_annotation = Some(Annotation::crop(pos));
             }
         }
+
+        if let Some(crop_rect) = crop {
+            self.update_texture(ctx, Some(crop_rect));
+            self.annotations
+                .push(self.current_annotation.clone().unwrap());
+            self.current_annotation = None;
+        }
     }
+
     fn manage_segment(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
         let Some(input) = input_res.interact_pointer_pos() else {
@@ -436,7 +486,13 @@ impl Editor {
         }
     }
 
-    pub fn tool_button(&mut self, ui: &mut Ui, image: &Image<'_>, mode: Mode) -> egui::Response {
+    pub fn tool_button(
+        &mut self,
+        ctx: &egui::Context,
+        ui: &mut Ui,
+        image: &Image<'_>,
+        mode: Mode,
+    ) -> egui::Response {
         let size_points = egui::Vec2::splat(24.0);
 
         let (id, rect) = ui.allocate_space(size_points);
@@ -461,16 +517,8 @@ impl Editor {
 
         if response.clicked() {
             match mode {
-                Mode::Undo => self.undo(),
-                Mode::Redo => self.redo(),
-                Mode::Crop => {
-                    if self.mode == mode {
-                        self.mode = Mode::Idle;
-                        self.current_crop = None
-                    } else {
-                        self.mode = mode;
-                    }
-                }
+                Mode::Undo => self.undo(ctx),
+                Mode::Redo => self.redo(ctx),
                 _ => {
                     if self.mode == mode {
                         self.mode = Mode::Idle;
@@ -483,50 +531,50 @@ impl Editor {
         }
         response
     }
-    pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
+    pub fn show_tool_buttons(&mut self, ctx: &egui::Context, ui: &mut Ui) {
         //dark mode
         if ui.visuals().dark_mode {
-            self.tool_button(ui, &ARROW_DARK, Mode::DrawArrow);
-            self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
-            self.tool_button(ui, &CROP_DARK, Mode::Crop);
-            self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
-            self.tool_button(ui, &ERASER_DARK, Mode::Erase);
-            self.tool_button(ui, &HIGHLIGHT_DARK, Mode::Highlight);
-            self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
-            self.tool_button(ui, &MOVE_DARK, Mode::Move);
-            self.tool_button(ui, &PENCIL_DARK, Mode::DrawFree);
-            self.tool_button(ui, &PIXELATE_DARK, Mode::DrawPixelate);
-            self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
-            self.tool_button(ui, &SELECT_DARK, Mode::Select);
-            self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
+            self.tool_button(ctx, ui, &CIRCLE_DARK, Mode::DrawCircle);
+            self.tool_button(ctx, ui, &CROP_DARK, Mode::Crop);
+            self.tool_button(ctx, ui, &CURSOR_DARK, Mode::Idle);
+            self.tool_button(ctx, ui, &ERASER_DARK, Mode::Erase);
+            self.tool_button(ctx, ui, &HIGHLIGHT_DARK, Mode::Highlight);
+            self.tool_button(ctx, ui, &LINE_DARK, Mode::DrawLine);
+            self.tool_button(ctx, ui, &ARROW_DARK, Mode::DrawArrow);
+            self.tool_button(ctx, ui, &PENCIL_DARK, Mode::DrawFree);
+            self.tool_button(ctx, ui, &PIXELATE_DARK, Mode::DrawPixelate);
+            self.tool_button(ctx, ui, &MOVE_DARK, Mode::Move);
+            self.tool_button(ctx, ui, &RECTANGLE_DARK, Mode::DrawRect);
+            self.tool_button(ctx, ui, &SELECT_DARK, Mode::Select);
+            self.tool_button(ctx, ui, &TEXT_DARK, Mode::InsertText);
             //TODO: render differently
-            self.tool_button(ui, &UNDO_DARK, Mode::Undo);
-            self.tool_button(ui, &REDO_DARK, Mode::Redo);
-            self.tool_button(ui, &WIDTH_DARK, Mode::SetWidth(10.0));
-            self.tool_button(ui, &ZOOMM_DARK, Mode::SetZoom(100.0));
-            self.tool_button(ui, &ZOOMP_DARK, Mode::SetZoom(50.0));
+            self.tool_button(ctx, ui, &UNDO_DARK, Mode::Undo);
+            self.tool_button(ctx, ui, &REDO_DARK, Mode::Redo);
+            self.tool_button(ctx, ui, &WIDTH_DARK, Mode::SetWidth(10.0));
+            self.tool_button(ctx, ui, &ZOOMM_DARK, Mode::SetZoom(100.0));
+            self.tool_button(ctx, ui, &ZOOMP_DARK, Mode::SetZoom(50.0));
         }
         //light mode
         else {
-            self.tool_button(ui, &ARROW, Mode::DrawArrow);
-            self.tool_button(ui, &CIRCLE, Mode::DrawCircle);
-            self.tool_button(ui, &CROP, Mode::Crop);
-            self.tool_button(ui, &CURSOR, Mode::Idle);
-            self.tool_button(ui, &ERASER, Mode::Erase);
-            self.tool_button(ui, &HIGHLIGHT, Mode::Highlight);
-            self.tool_button(ui, &LINE, Mode::DrawLine);
-            self.tool_button(ui, &MOVE, Mode::Move);
-            self.tool_button(ui, &PENCIL, Mode::DrawFree);
-            self.tool_button(ui, &PIXELATE, Mode::DrawPixelate);
-            self.tool_button(ui, &RECTANGLE, Mode::DrawRect);
-            self.tool_button(ui, &SELECT, Mode::Select);
-            self.tool_button(ui, &TEXT, Mode::InsertText);
+            self.tool_button(ctx, ui, &ARROW, Mode::DrawArrow);
+            self.tool_button(ctx, ui, &CIRCLE, Mode::DrawCircle);
+            self.tool_button(ctx, ui, &CROP, Mode::Crop);
+            self.tool_button(ctx, ui, &CURSOR, Mode::Idle);
+            self.tool_button(ctx, ui, &ERASER, Mode::Erase);
+            self.tool_button(ctx, ui, &HIGHLIGHT, Mode::Highlight);
+            self.tool_button(ctx, ui, &LINE, Mode::DrawLine);
+            self.tool_button(ctx, ui, &MOVE, Mode::Move);
+            self.tool_button(ctx, ui, &PENCIL, Mode::DrawFree);
+            self.tool_button(ctx, ui, &PIXELATE, Mode::DrawPixelate);
+            self.tool_button(ctx, ui, &RECTANGLE, Mode::DrawRect);
+            self.tool_button(ctx, ui, &SELECT, Mode::Select);
+            self.tool_button(ctx, ui, &TEXT, Mode::InsertText);
             //TODO: render differently
-            self.tool_button(ui, &UNDO, Mode::Undo);
-            self.tool_button(ui, &REDO, Mode::Redo);
-            self.tool_button(ui, &WIDTH, Mode::SetWidth(10.0));
-            self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
-            self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
+            self.tool_button(ctx, ui, &UNDO, Mode::Undo);
+            self.tool_button(ctx, ui, &REDO, Mode::Redo);
+            self.tool_button(ctx, ui, &WIDTH, Mode::SetWidth(10.0));
+            self.tool_button(ctx, ui, &ZOOMM, Mode::SetZoom(100.0));
+            self.tool_button(ctx, ui, &ZOOMP, Mode::SetZoom(50.0));
         }
         let alpha: Alpha = Alpha::OnlyBlend;
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
@@ -538,20 +586,35 @@ impl Editor {
         ui.color_edit_button_srgba(color);
     }
 
-    fn undo(&mut self) {
+    fn undo(&mut self, ctx: &egui::Context) {
         if self.annotations.len() > 0 {
             let undone = self.annotations.pop().unwrap();
             if let Annotation::Eraser(e) = undone.clone() {
                 self.annotations.push(*e);
             }
+            if let Annotation::Crop(c) = undone.clone() {
+                if let Some(Annotation::Crop(old_crop)) = self
+                    .annotations
+                    .iter()
+                    .filter(|a| matches!(a, Annotation::Crop(_)))
+                    .last()
+                {
+                    self.update_texture(ctx, Some(old_crop.get_rect()));
+                } else {
+                    self.update_texture(ctx, None);
+                }
+            }
             self.undone_annotations.push(undone);
         }
     }
-    fn redo(&mut self) {
+    fn redo(&mut self, ctx: &egui::Context) {
         if self.undone_annotations.len() > 0 {
             let redo = self.undone_annotations.pop().unwrap();
             if let Annotation::Eraser(_) = redo {
                 self.annotations.pop();
+            }
+            if let Annotation::Crop(c) = &redo {
+                self.update_texture(ctx, Some(c.get_rect()));
             }
             self.annotations.push(redo);
         }

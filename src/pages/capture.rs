@@ -25,7 +25,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             .max_width(22f32)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
-                    app.editor.show_tool_buttons(ui);
+                    app.editor.show_tool_buttons(ctx, ui);
                 })
             });
         if app.has_captured_image() {
@@ -36,18 +36,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 // );
                 // let y = ctx.load_texture("screenshot", x, TextureOptions::default());
 
-                let image_res = Image::new(&app.texture_image.clone().unwrap())
-                    //let image_res = Image::new(&y.clone())
-                    .maintain_aspect_ratio(true)
-                    .max_size(ui.available_size())
-                    .ui(ui);
-                let original_rect =
-                    Rect::from_min_size(Pos2::ZERO, app.texture_image.clone().unwrap().size_vec2());
-                let to_screen = RectTransform::from_to(original_rect, image_res.rect);
-                let painter = egui::Painter::new(ctx.clone(), image_res.layer_id, image_res.rect);
-                app.editor
-                    .manage_input(&ctx, ui, to_screen.inverse(), &painter);
-                app.editor.manage_render(&painter, to_screen);
+                app.editor.manage(ui, ctx);
             });
         }
     });

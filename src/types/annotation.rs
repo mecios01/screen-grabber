@@ -138,7 +138,7 @@ impl CircleAnnotation {
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::circle_stroke(
-            rect_transform.transform_pos_clamped(self.center),
+            rect_transform.transform_pos(self.center),
             self.radius * scaling,
             Stroke::new(self.width * scaling, self.color),
         )
@@ -173,8 +173,8 @@ impl RectAnnotation {
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
         Shape::rect_stroke(
             Rect::from_two_pos(
-                rect_transform.transform_pos_clamped(self.p1),
-                rect_transform.transform_pos_clamped(self.p2),
+                rect_transform.transform_pos(self.p1),
+                rect_transform.transform_pos(self.p2),
             ),
             0.0,
             Stroke::new(self.width * scaling, self.color),
@@ -309,10 +309,7 @@ impl TextAnnotation {
             FontId::monospace(self.size * scaling),
             self.color,
         );
-        let text_shape = Shape::Text(TextShape::new(
-            to_screen.transform_pos_clamped(self.pos),
-            galley,
-        ));
+        let text_shape = Shape::Text(TextShape::new(to_screen.transform_pos(self.pos), galley));
         if !editing {
             return text_shape;
         }
@@ -320,8 +317,8 @@ impl TextAnnotation {
         let mut rect = text_shape.visual_bounding_rect().expand(4.0);
         if rect.any_nan() {
             rect = Rect::from_two_pos(
-                to_screen.transform_pos_clamped(self.pos),
-                to_screen.transform_pos_clamped(
+                to_screen.transform_pos(self.pos),
+                to_screen.transform_pos(
                     self.pos + Vec2::angled(std::f32::consts::TAU / 8.0) * self.size * scaling,
                 ),
             )
@@ -377,7 +374,7 @@ impl PencilAnnotation {
         let line: Vec<Pos2> = self
             .points
             .iter()
-            .map(|p| rect_transform.transform_pos_clamped(*p))
+            .map(|p| rect_transform.transform_pos(*p))
             .collect();
 
         Shape::line(line, Stroke::new(self.width * scaling, self.color))
@@ -389,6 +386,7 @@ pub struct CropAnnotation {
     pub p1: Pos2,
     pub p2: Pos2,
     pub resizing: bool,
+    pub finished: bool,
 }
 
 impl CropAnnotation {
@@ -397,6 +395,7 @@ impl CropAnnotation {
             p1,
             p2,
             resizing: true,
+            finished: false,
         }
     }
 
@@ -406,10 +405,13 @@ impl CropAnnotation {
         self.p2 = rect.max;
     }
     pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        if self.finished {
+            return Shape::Noop;
+        };
         let color = Color32::from_rgb(255, 255, 255);
         let rect = Rect::from_two_pos(
-            rect_transform.transform_pos_clamped(self.p1),
-            rect_transform.transform_pos_clamped(self.p2),
+            rect_transform.transform_pos(self.p1),
+            rect_transform.transform_pos(self.p2),
         );
         let border = Shape::rect_stroke(rect, 0.0, Stroke::new(2.0 * scaling, color));
         let mut cps: Vec<Shape> = self
@@ -449,7 +451,6 @@ impl CropAnnotation {
     }
     pub fn get_control_points(&self, to_screen: RectTransform) -> Vec<ControlPoint> {
         let rect = to_screen.transform_rect(Rect::from_two_pos(self.p1, self.p2));
-
         vec![
             ControlPoint::new(rect.left_top(), Position::LeftTop),
             ControlPoint::new(rect.center_top(), Position::CenterTop),
@@ -466,6 +467,14 @@ impl CropAnnotation {
     }
     pub fn update_resize(&mut self, value: bool) {
         self.resizing = value;
+    }
+
+    pub fn update_finished(&mut self, value: bool) {
+        self.finished = value;
+    }
+
+    pub fn get_rect(&self) -> Rect {
+        Rect::from_two_pos(self.p1, self.p2)
     }
 }
 

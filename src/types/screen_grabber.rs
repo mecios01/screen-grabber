@@ -1,6 +1,8 @@
 use std::thread;
 
-use egui::{ColorImage, FontFamily, FontId, TextStyle, TextureHandle, TextureOptions, Vec2};
+use egui::{
+    ColorImage, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2,
+};
 use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 
@@ -97,8 +99,12 @@ impl ScreenGrabber {
         .join()
         .unwrap();
         let id = ctx.load_texture("screenshot", image.clone(), TextureOptions::default());
-        self.texture_image = Some(id);
-        self.captured_image = Some(image);
+        self.texture_image = Some(id.clone());
+        self.captured_image = Some(image.clone());
+        self.editor.texture = Some(id.clone());
+        self.editor.captured_image = Some(image.clone());
+        self.editor.original_rect = Rect::from_min_size(Pos2::ZERO, id.size_vec2());
+        self.editor.crop_rect = Rect::from_min_size(Pos2::ZERO, id.size_vec2());
     }
 
     pub fn save_as(&mut self) -> Option<()> {
