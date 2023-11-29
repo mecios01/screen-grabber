@@ -25,18 +25,12 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             .max_width(22f32)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
-                    app.editor.show_tool_buttons(ctx, ui);
+                    app.editor.show_tool_buttons(ui);
                 })
             });
         if app.has_captured_image() {
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                // let x = app.captured_image.clone().unwrap().region(
-                //     &Rect::from_two_pos(Pos2::new(0.0, 0.0), Pos2::new(100.0, 1000.0)),
-                //     None,
-                // );
-                // let y = ctx.load_texture("screenshot", x, TextureOptions::default());
-
-                app.editor.manage(ui, ctx);
+                app.editor.manage(ui);
             });
         }
     });
