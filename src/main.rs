@@ -1,20 +1,19 @@
 use std::str::FromStr;
+use std::time::Duration;
+
+use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager};
+
 use types::screen_grabber::ScreenGrabber;
 
 pub mod pages;
 pub mod types;
-
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager};
-use std::time::Duration;
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         // changed a bit after upgrading to egui 0.24.0
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([500.0, 400.0])
-            .with_min_inner_size([500.0, 400.0])
-            .with_transparent(true)
-            .with_mouse_passthrough(true),
+            .with_min_inner_size([500.0, 400.0]),
         ..Default::default()
     };
 
