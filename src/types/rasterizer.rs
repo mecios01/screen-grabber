@@ -42,7 +42,7 @@ impl Rasterizer {
 
 impl Rasterizer {
     ///create a new rasterizer given a surface size
-    pub fn new(canvas_size: (u32, u32), crop_size: (u32, u32)) -> Self {
+    pub fn new(canvas_size: (u32, u32), crop_size: (Pos2, Pos2)) -> Self {
         let surface = surfaces::raster(
             &ImageInfo::new_n32(
                 (canvas_size.0 as i32, canvas_size.1 as i32),
@@ -56,10 +56,7 @@ impl Rasterizer {
 
         Self {
             // canvas_size,
-            crop_area: (
-                Pos2::ZERO,
-                Pos2::from((crop_size.0 as f32, crop_size.1 as f32)),
-            ),
+            crop_area: (crop_size.0, crop_size.1),
             surface,
         }
     }

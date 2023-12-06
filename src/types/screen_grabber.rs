@@ -63,7 +63,6 @@ impl ScreenGrabber {
         }
 
         Default::default()
-
     }
     pub fn set_page(&mut self, page: PageType) {
         self.current_page = page
@@ -120,8 +119,10 @@ impl ScreenGrabber {
             return None;
         }
         let annotations = self.editor.annotations.clone();
+        let canvas_size = (size[0] as u32, size[1] as u32);
+        let crop_size = (self.editor.crop_rect.min, self.editor.crop_rect.max);
         thread::spawn(move || {
-            let mut rasterizer = Rasterizer::new((size[0] as u32, size[1] as u32), (1920, 1080));
+            let mut rasterizer = Rasterizer::new(canvas_size, crop_size);
             rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
             rasterizer.add_annotations(annotations.as_ref());
             match rasterizer.export(&path.unwrap()) {
