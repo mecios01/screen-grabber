@@ -1,25 +1,22 @@
-use eframe::emath::{Align, Rect, RectTransform};
-use egui::{Image, Layout, Pos2, ViewportCommand, Widget};
+use eframe::emath::Align;
+use egui::Layout;
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    if app.editor.texture.is_none() {
-        ctx.send_viewport_cmd(ViewportCommand::Minimized(true));
-        // _frame.set_minimized(true);
-        // _frame.set_always_on_top(false);
-        app.is_minimized = true;
-    }
     if !app.has_captured_image() {
-        app.capture(ctx);
+        app.set_page(PageType::Launcher)
     }
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.horizontal(|ui| {
             if ui.button("Launcher").clicked() {
                 app.set_page(PageType::Launcher);
             }
-            if ui.button("Save as").clicked() {
+            if ui
+                .add_enabled(!app.is_saving, egui::Button::new("Save as"))
+                .clicked()
+            {
                 app.save_as();
             }
             app.editor.show_fill_dropdown(ui);

@@ -195,6 +195,7 @@ impl ScreenGrabber {
                             ctx.load_texture("screenshot", c.clone(), TextureOptions::default());
                         self.editor.crop_rect = Rect::from_min_size(Pos2::ZERO, id.size_vec2());
                         self.editor.texture = Some(id);
+                        self.editor.annotations.clear();
                         let mut guard = self.editor.captured_image.lock().unwrap();
                         *guard = Some(c);
                         self.is_capturing = false;
