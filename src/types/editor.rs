@@ -85,11 +85,9 @@ impl Editor {
             .shrink_to_fit()
             .ui(ui);
         let to_screen = RectTransform::from_to(self.crop_rect, image_res.rect);
-        let painter = Painter::new(ui.ctx().clone(), image_res.layer_id, image_res.rect);
-
         ui.set_clip_rect(image_res.rect);
         self.manage_input(ui, to_screen.inverse());
-        self.manage_render(&painter, to_screen);
+        self.manage_render(ui.painter(), to_screen);
     }
     pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
         match self.mode {
@@ -481,17 +479,16 @@ impl Editor {
         };
         let pos = input;
         if input_res.clicked() {
-            let index = self.annotations.iter().rposition(|a| {
+            if let Some(index) = self.annotations.iter().rposition(|a| {
                 a.check_click(
                     pos,
                     to_original.inverse().scale()[0],
                     to_original.inverse(),
                     ui.painter(),
                 )
-            });
-            if index.is_some() {
-                let removed = self.annotations.remove(index.unwrap());
-                self.add_annotation(Annotation::eraser(removed));
+            }) {
+                let removed = self.annotations.remove(index);
+                self.add_annotation(Annotation::eraser(removed, index));
             }
         }
     }
@@ -626,7 +623,7 @@ impl Editor {
         if self.annotations.len() > 0 {
             let undone = self.annotations.pop().unwrap();
             if let Annotation::Eraser(e) = undone.clone() {
-                self.annotations.push(*e);
+                self.annotations.insert(e.index, *e.annotation);
             }
             if let Annotation::Crop(_) = undone.clone() {
                 if let Some(Annotation::Crop(old_crop)) = self
@@ -646,8 +643,8 @@ impl Editor {
     fn redo(&mut self, ui: &mut Ui) {
         if self.undone_annotations.len() > 0 {
             let redo = self.undone_annotations.pop().unwrap();
-            if let Annotation::Eraser(_) = redo {
-                self.annotations.pop();
+            if let Annotation::Eraser(e) = &redo {
+                self.annotations.remove(e.index);
             }
             if let Annotation::Crop(c) = &redo {
                 self.update_texture(ui, Some(c.get_rect()));

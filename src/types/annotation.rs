@@ -1,3 +1,4 @@
+use crate::types::editor::Mode::Select;
 use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
 use egui::epaint::{CircleShape, RectShape, TextShape};
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
@@ -10,7 +11,7 @@ pub enum Annotation {
     Arrow(ArrowAnnotation),
     Pencil(PencilAnnotation),
     Text(TextAnnotation),
-    Eraser(Box<Annotation>),
+    Eraser(EraserAnnotation),
     Crop(CropAnnotation),
 }
 
@@ -38,8 +39,8 @@ impl Annotation {
         Self::Text(TextAnnotation::new(pos, color, font_size))
     }
 
-    pub fn eraser(annotation: Annotation) -> Self {
-        Self::Eraser(Box::new(annotation))
+    pub fn eraser(annotation: Annotation, index: usize) -> Self {
+        Self::Eraser(EraserAnnotation::new(index, Box::new(annotation)))
     }
 
     pub fn crop(pos: Pos2) -> Self {
@@ -374,6 +375,18 @@ impl PencilAnnotation {
             .collect();
 
         Shape::line(line, Stroke::new(self.width * scaling, self.color))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EraserAnnotation {
+    pub annotation: Box<Annotation>,
+    pub index: usize,
+}
+
+impl EraserAnnotation {
+    pub fn new(index: usize, annotation: Box<Annotation>) -> Self {
+        Self { index, annotation }
     }
 }
 
