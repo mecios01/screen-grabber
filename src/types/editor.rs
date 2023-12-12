@@ -86,10 +86,12 @@ impl Editor {
             .ui(ui);
         let to_screen = RectTransform::from_to(self.crop_rect, image_res.rect);
         let painter = Painter::new(ui.ctx().clone(), image_res.layer_id, image_res.rect);
-        self.manage_input(ui, to_screen.inverse(), &painter);
+
+        ui.set_clip_rect(image_res.rect);
+        self.manage_input(ui, to_screen.inverse());
         self.manage_render(&painter, to_screen);
     }
-    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
         match self.mode {
             Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
@@ -99,7 +101,7 @@ impl Editor {
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawPixelate => {}
             Mode::DrawRect => self.manage_rect(ui, to_original),
-            Mode::Erase => self.manage_eraser(ui, to_original, painter),
+            Mode::Erase => self.manage_eraser(ui, to_original),
             Mode::Highlight => {}
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
@@ -472,7 +474,7 @@ impl Editor {
         }
     }
 
-    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
         let Some(input) = input_res.interact_pointer_pos() else {
             return;
@@ -484,7 +486,7 @@ impl Editor {
                     pos,
                     to_original.inverse().scale()[0],
                     to_original.inverse(),
-                    painter,
+                    ui.painter(),
                 )
             });
             if index.is_some() {
