@@ -82,6 +82,7 @@ impl Editor {
         let image_res = Image::new(&self.texture.clone().unwrap())
             .maintain_aspect_ratio(true)
             .max_size(ui.available_size())
+            .shrink_to_fit()
             .ui(ui);
         let to_screen = RectTransform::from_to(self.crop_rect, image_res.rect);
         let painter = Painter::new(ui.ctx().clone(), image_res.layer_id, image_res.rect);
@@ -187,7 +188,7 @@ impl Editor {
                 return;
             }
             let control_points = c.get_control_points(to_original.inverse());
-            let size = Vec2::splat(8.0);
+            let size = Vec2::splat(5.0 * 2.0);
             control_points.into_iter().enumerate().for_each(|(i, cp)| {
                 let point_rect = Rect::from_center_size(cp.pos, size);
                 let point_response =

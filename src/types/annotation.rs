@@ -409,11 +409,11 @@ impl CropAnnotation {
             rect_transform.transform_pos(self.p1),
             rect_transform.transform_pos(self.p2),
         );
-        let border = Shape::rect_stroke(rect, 0.0, Stroke::new(2.0 * scaling, color));
+        let border = Shape::rect_stroke(rect, 0.0, Stroke::new(1.0, color)); //no scaling it's virtual
         let mut cps: Vec<Shape> = self
             .get_points(rect_transform)
             .iter()
-            .map(|p| Shape::circle_filled(*p, 8.0 * scaling, color))
+            .map(|p| Shape::circle_filled(*p, 5.0, color)) //no scaling virtual
             .collect();
 
         let top = Rect::everything_above(rect.min.y);
