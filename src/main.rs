@@ -5,7 +5,7 @@ pub mod pages;
 pub mod types;
 
 fn main() -> eframe::Result<()> {
-    let icon_path = "/home/cybermonkey/Downloads/screen-grabber.png";
+    let icon_path = "assets/icons/screen-grabber.png";
     let icon = load_icon(icon_path).unwrap();
 
     let native_options = eframe::NativeOptions {
