@@ -12,11 +12,19 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
 
     egui::containers::CentralPanel::default().show(ctx, |ui| {
         egui::TopBottomPanel::new(TopBottomSide::Top, "header").show_inside(ui, |ui| {
-            ui.label(
-                egui::RichText::new("Settings")
-                    .color(Color32::DARK_GREEN)
-                    .font(FontId::proportional(40.0)),
-            );
+            ui.horizontal(|ui|{
+                ui.label(
+                    egui::RichText::new("Settings")
+                        .color(Color32::DARK_GREEN)
+                        .font(FontId::proportional(40.0)),
+                );
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui|{
+                    if ui.button("Back").clicked(){
+                        app.set_page(PageType::Launcher)
+                    }
+                })
+            });
+
         });
 
         egui::SidePanel::new(Side::Left, "settings-sections")
