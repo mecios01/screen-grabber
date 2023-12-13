@@ -31,7 +31,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 })
             });
         if app.has_captured_image() {
-            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+            ui.vertical_centered(|ui| {
                 app.editor.manage(ui);
             });
         }
