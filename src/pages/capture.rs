@@ -1,6 +1,3 @@
-use eframe::emath::Align;
-use egui::Layout;
-
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
 

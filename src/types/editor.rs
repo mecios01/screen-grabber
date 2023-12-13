@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
+    Color32, ColorImage, DragValue, Event, Image, Key, Painter, PointerButton, Pos2,
     Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
 };
 
@@ -114,21 +114,21 @@ impl Editor {
         }
     }
 
-    fn get_input(
-        &self,
-        rect: Rect,
-        ui: &mut Ui,
-        id: Id,
-        rect_transform: RectTransform,
-        sense: Sense,
-    ) -> (Response, Option<Pos2>) {
-        let input_res = ui.interact(rect, id, sense);
-        let Some(input) = input_res.interact_pointer_pos() else {
-            return (input_res, None);
-        };
-        let pos = rect_transform.transform_pos_clamped(input);
-        return (input_res, Some(pos));
-    }
+    // fn get_input(
+    //     &self,
+    //     rect: Rect,
+    //     ui: &mut Ui,
+    //     id: Id,
+    //     rect_transform: RectTransform,
+    //     sense: Sense,
+    // ) -> (Response, Option<Pos2>) {
+    //     let input_res = ui.interact(rect, id, sense);
+    //     let Some(input) = input_res.interact_pointer_pos() else {
+    //         return (input_res, None);
+    //     };
+    //     let pos = rect_transform.transform_pos_clamped(input);
+    //     return (input_res, Some(pos));
+    // }
 
     fn update_texture(&mut self, ui: &mut Ui, crop: Option<Rect>) {
         let Some(image) = self.captured_image.lock().unwrap().clone() else {
