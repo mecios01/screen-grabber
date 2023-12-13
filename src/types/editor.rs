@@ -3,8 +3,9 @@ use std::default::Default;
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
-    Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
+    paint_texture_at, Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter,
+    PointerButton, Pos2, Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions,
+    Ui, Vec2, Widget,
 };
 
 use crate::types::annotation::{Annotation, Position};
@@ -68,25 +69,27 @@ impl Default for Editor {
 
 impl Editor {
     pub fn manage(&mut self, ui: &mut Ui) {
-        if let Some(c) = self
-            .current_annotation
-            .iter()
-            .filter(|&a| matches!(a, Annotation::Crop(_)))
-            .last()
-        {}
+        let image_ratio = self.texture.as_ref().unwrap().aspect_ratio();
+        let space_ratio = ui.max_rect().aspect_ratio();
+        if image_ratio > space_ratio {
+            let mut padding = ui.max_rect();
+            padding.set_bottom(
+                padding.top() + padding.height() / 2.0 - padding.width() / image_ratio / 2.0,
+            );
+            ui.advance_cursor_after_rect(padding);
+        }
 
         let image_res = Image::new(&self.texture.clone().unwrap())
-            //let image_res = Image::new(&y.clone())
             .maintain_aspect_ratio(true)
             .max_size(ui.available_size())
             .shrink_to_fit()
             .ui(ui);
         let to_screen = RectTransform::from_to(self.crop_rect, image_res.rect);
-        let painter = Painter::new(ui.ctx().clone(), image_res.layer_id, image_res.rect);
-        self.manage_input(ui, to_screen.inverse(), &painter);
-        self.manage_render(&painter, to_screen);
+        ui.set_clip_rect(image_res.rect);
+        self.manage_input(ui, to_screen.inverse());
+        self.manage_render(ui.painter(), to_screen);
     }
-    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+    pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
         match self.mode {
             Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
@@ -96,7 +99,7 @@ impl Editor {
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawPixelate => {}
             Mode::DrawRect => self.manage_rect(ui, to_original),
-            Mode::Erase => self.manage_eraser(ui, to_original, painter),
+            Mode::Erase => self.manage_eraser(ui, to_original),
             Mode::Highlight => {}
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
@@ -158,6 +161,12 @@ impl Editor {
             TextureOptions::default(),
         ));
     }
+
+    fn add_annotation(&mut self, annotation: Annotation) {
+        self.annotations.push(annotation);
+        self.undone_annotations = Vec::new();
+        self.current_annotation = None;
+    }
     fn manage_crop(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let mut crop = None;
         if let Some(Annotation::Crop(ref mut c)) = self.current_annotation.as_mut() {
@@ -179,7 +188,7 @@ impl Editor {
                 return;
             }
             let control_points = c.get_control_points(to_original.inverse());
-            let size = Vec2::splat(8.0);
+            let size = Vec2::splat(5.0 * 2.0);
             control_points.into_iter().enumerate().for_each(|(i, cp)| {
                 let point_rect = Rect::from_center_size(cp.pos, size);
                 let point_response =
@@ -249,9 +258,7 @@ impl Editor {
 
         if let Some(crop_rect) = crop {
             self.update_texture(ui, Some(crop_rect));
-            self.annotations
-                .push(self.current_annotation.clone().unwrap());
-            self.current_annotation = None;
+            self.add_annotation(self.current_annotation.clone().unwrap());
         }
     }
 
@@ -274,10 +281,10 @@ impl Editor {
             s.update_ending(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if s.starting_pos != s.ending_pos {
-                    self.annotations
-                        .push(self.current_annotation.clone().unwrap());
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
                 }
-                self.current_annotation = None;
             }
         }
     }
@@ -306,10 +313,10 @@ impl Editor {
             c.update_radius(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if c.radius != 0.0 {
-                    self.annotations
-                        .push(self.current_annotation.clone().unwrap());
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
                 }
-                self.current_annotation = None;
             }
         }
     }
@@ -339,10 +346,10 @@ impl Editor {
             r.update_p2(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if r.p1 != r.p2 {
-                    self.annotations
-                        .push(self.current_annotation.clone().unwrap());
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
                 }
-                self.current_annotation = None;
             }
         }
     }
@@ -396,10 +403,10 @@ impl Editor {
             p.update_points(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if p.points.len() > 1 {
-                    self.annotations
-                        .push(self.current_annotation.clone().unwrap());
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
                 }
-                self.current_annotation = None;
             }
         }
     }
@@ -436,9 +443,7 @@ impl Editor {
                             modifiers: egui::Modifiers::NONE,
                             ..
                         } => {
-                            self.annotations
-                                .push(self.current_annotation.clone().unwrap());
-                            self.current_annotation = None;
+                            self.add_annotation(self.current_annotation.clone().unwrap());
                             return;
                         }
                         Event::Key {
@@ -467,24 +472,23 @@ impl Editor {
         }
     }
 
-    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform, painter: &Painter) {
+    fn manage_eraser(&mut self, ui: &mut Ui, to_original: RectTransform) {
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click());
         let Some(input) = input_res.interact_pointer_pos() else {
             return;
         };
         let pos = input;
         if input_res.clicked() {
-            let index = self.annotations.iter().rposition(|a| {
+            if let Some(index) = self.annotations.iter().rposition(|a| {
                 a.check_click(
                     pos,
                     to_original.inverse().scale()[0],
                     to_original.inverse(),
-                    painter,
+                    ui.painter(),
                 )
-            });
-            if index.is_some() {
-                let removed = self.annotations.remove(index.unwrap());
-                self.annotations.push(Annotation::eraser(removed));
+            }) {
+                let removed = self.annotations.remove(index);
+                self.add_annotation(Annotation::eraser(removed, index));
             }
         }
     }
@@ -536,20 +540,14 @@ impl Editor {
             self.tool_button(ui, &CROP_DARK, Mode::Crop);
             self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
             self.tool_button(ui, &ERASER_DARK, Mode::Erase);
-            self.tool_button(ui, &HIGHLIGHT_DARK, Mode::Highlight);
             self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
-            self.tool_button(ui, &MOVE_DARK, Mode::Move);
             self.tool_button(ui, &PENCIL_DARK, Mode::DrawFree);
             self.tool_button(ui, &PIXELATE_DARK, Mode::DrawPixelate);
             self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
-            self.tool_button(ui, &SELECT_DARK, Mode::Select);
             self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
             //TODO: render differently
             self.tool_button(ui, &UNDO_DARK, Mode::Undo);
             self.tool_button(ui, &REDO_DARK, Mode::Redo);
-            self.tool_button(ui, &WIDTH_DARK, Mode::SetWidth(10.0));
-            self.tool_button(ui, &ZOOMM_DARK, Mode::SetZoom(100.0));
-            self.tool_button(ui, &ZOOMP_DARK, Mode::SetZoom(50.0));
         }
         //light mode
         else {
@@ -574,6 +572,7 @@ impl Editor {
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
         let alpha: Alpha = Alpha::OnlyBlend;
+        ui.shrink_width_to_current();
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }
     pub fn show_fill_dropdown(&mut self, ui: &mut Ui) {
@@ -617,14 +616,14 @@ impl Editor {
         ui.painter().line_segment([left, right], (*width, *color));
         egui::color_picker::color_edit_button_srgba(ui, color, Alpha::OnlyBlend)
             .on_hover_text("Stroke");
-        ui.add_space(ui.spacing().item_spacing.y)
+        ui.add_space(ui.spacing().item_spacing.y);
     }
 
     fn undo(&mut self, ui: &mut Ui) {
         if self.annotations.len() > 0 {
             let undone = self.annotations.pop().unwrap();
             if let Annotation::Eraser(e) = undone.clone() {
-                self.annotations.push(*e);
+                self.annotations.insert(e.index, *e.annotation);
             }
             if let Annotation::Crop(_) = undone.clone() {
                 if let Some(Annotation::Crop(old_crop)) = self
@@ -644,8 +643,8 @@ impl Editor {
     fn redo(&mut self, ui: &mut Ui) {
         if self.undone_annotations.len() > 0 {
             let redo = self.undone_annotations.pop().unwrap();
-            if let Annotation::Eraser(_) = redo {
-                self.annotations.pop();
+            if let Annotation::Eraser(e) = &redo {
+                self.annotations.remove(e.index);
             }
             if let Annotation::Crop(c) = &redo {
                 self.update_texture(ui, Some(c.get_rect()));

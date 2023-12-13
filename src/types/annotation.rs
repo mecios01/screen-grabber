@@ -1,3 +1,4 @@
+use crate::types::editor::Mode::Select;
 use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
 use egui::epaint::{CircleShape, RectShape, TextShape};
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
@@ -10,7 +11,7 @@ pub enum Annotation {
     Arrow(ArrowAnnotation),
     Pencil(PencilAnnotation),
     Text(TextAnnotation),
-    Eraser(Box<Annotation>),
+    Eraser(EraserAnnotation),
     Crop(CropAnnotation),
 }
 
@@ -38,8 +39,8 @@ impl Annotation {
         Self::Text(TextAnnotation::new(pos, color, font_size))
     }
 
-    pub fn eraser(annotation: Annotation) -> Self {
-        Self::Eraser(Box::new(annotation))
+    pub fn eraser(annotation: Annotation, index: usize) -> Self {
+        Self::Eraser(EraserAnnotation::new(index, Box::new(annotation)))
     }
 
     pub fn crop(pos: Pos2) -> Self {
@@ -378,6 +379,18 @@ impl PencilAnnotation {
 }
 
 #[derive(Debug, Clone)]
+pub struct EraserAnnotation {
+    pub annotation: Box<Annotation>,
+    pub index: usize,
+}
+
+impl EraserAnnotation {
+    pub fn new(index: usize, annotation: Box<Annotation>) -> Self {
+        Self { index, annotation }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CropAnnotation {
     pub p1: Pos2,
     pub p2: Pos2,
@@ -409,11 +422,11 @@ impl CropAnnotation {
             rect_transform.transform_pos(self.p1),
             rect_transform.transform_pos(self.p2),
         );
-        let border = Shape::rect_stroke(rect, 0.0, Stroke::new(2.0 * scaling, color));
+        let border = Shape::rect_stroke(rect, 0.0, Stroke::new(1.0, color)); //no scaling it's virtual
         let mut cps: Vec<Shape> = self
             .get_points(rect_transform)
             .iter()
-            .map(|p| Shape::circle_filled(*p, 8.0 * scaling, color))
+            .map(|p| Shape::circle_filled(*p, 5.0, color)) //no scaling virtual
             .collect();
 
         let top = Rect::everything_above(rect.min.y);
