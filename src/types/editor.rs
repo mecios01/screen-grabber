@@ -4,9 +4,8 @@ use std::sync::{Arc, Mutex};
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    paint_texture_at, Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter,
-    PointerButton, Pos2, Response, Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions,
-    Ui, Vec2, Widget,
+    Color32, ColorImage, DragValue, Event, Id, Image, Key, Painter, PointerButton, Pos2, Response,
+    Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
 };
 
 use crate::types::annotation::{Annotation, Position};
@@ -17,20 +16,14 @@ pub enum Mode {
     Crop,
     DrawArrow,
     DrawCircle,
-    DrawEllipse,
     DrawFree,
     DrawLine,
-    DrawPixelate,
     DrawRect,
     Erase,
     Highlight,
     Idle,
     InsertText,
-    Move,
     Redo,
-    Select,
-    SetWidth(f32),
-    SetZoom(f32),
     Undo,
 }
 
@@ -95,20 +88,14 @@ impl Editor {
             Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
             Mode::DrawCircle => self.manage_circle(ui, to_original),
-            Mode::DrawEllipse => {}
             Mode::DrawFree => self.manage_pencil(ui, to_original),
             Mode::DrawLine => self.manage_segment(ui, to_original),
-            Mode::DrawPixelate => {}
             Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::Erase => self.manage_eraser(ui, to_original),
             Mode::Highlight => {}
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
-            Mode::Move => {}
             Mode::Redo => {}
-            Mode::Select => {}
-            Mode::SetWidth(_width) => {}
-            Mode::SetZoom(_zoom) => {}
             Mode::Undo => {}
         }
     }
@@ -536,14 +523,15 @@ impl Editor {
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
         //dark mode
         if ui.visuals().dark_mode {
+            self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
+
             self.tool_button(ui, &ARROW_DARK, Mode::DrawArrow);
             self.tool_button(ui, &CIRCLE_DARK, Mode::DrawCircle);
             self.tool_button(ui, &CROP_DARK, Mode::Crop);
-            self.tool_button(ui, &CURSOR_DARK, Mode::Idle);
             self.tool_button(ui, &ERASER_DARK, Mode::Erase);
+            self.tool_button(ui, &HIGHLIGHT_DARK, Mode::Highlight);
             self.tool_button(ui, &LINE_DARK, Mode::DrawLine);
             self.tool_button(ui, &PENCIL_DARK, Mode::DrawFree);
-            self.tool_button(ui, &PIXELATE_DARK, Mode::DrawPixelate);
             self.tool_button(ui, &RECTANGLE_DARK, Mode::DrawRect);
             self.tool_button(ui, &TEXT_DARK, Mode::InsertText);
             //TODO: render differently
@@ -552,25 +540,20 @@ impl Editor {
         }
         //light mode
         else {
+            self.tool_button(ui, &CURSOR, Mode::Idle);
+
             self.tool_button(ui, &ARROW, Mode::DrawArrow);
             self.tool_button(ui, &CIRCLE, Mode::DrawCircle);
             self.tool_button(ui, &CROP, Mode::Crop);
-            self.tool_button(ui, &CURSOR, Mode::Idle);
             self.tool_button(ui, &ERASER, Mode::Erase);
             self.tool_button(ui, &HIGHLIGHT, Mode::Highlight);
             self.tool_button(ui, &LINE, Mode::DrawLine);
-            self.tool_button(ui, &MOVE, Mode::Move);
             self.tool_button(ui, &PENCIL, Mode::DrawFree);
-            self.tool_button(ui, &PIXELATE, Mode::DrawPixelate);
             self.tool_button(ui, &RECTANGLE, Mode::DrawRect);
-            self.tool_button(ui, &SELECT, Mode::Select);
             self.tool_button(ui, &TEXT, Mode::InsertText);
             //TODO: render differently
             self.tool_button(ui, &UNDO, Mode::Undo);
             self.tool_button(ui, &REDO, Mode::Redo);
-            self.tool_button(ui, &WIDTH, Mode::SetWidth(10.0));
-            self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
-            self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
         ui.shrink_width_to_current();
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);

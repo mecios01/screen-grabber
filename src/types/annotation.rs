@@ -1,4 +1,3 @@
-use crate::types::editor::Mode::Select;
 use eframe::emath::{Pos2, RectTransform, Rot2, Vec2};
 use egui::epaint::{CircleShape, RectShape, TextShape};
 use egui::{Color32, FontId, Painter, Rect, Shape, Stroke};
