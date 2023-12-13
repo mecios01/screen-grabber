@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::sync::{Arc, Mutex};
 
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
@@ -34,7 +35,7 @@ pub enum Mode {
 }
 
 pub struct Editor {
-    pub captured_image: Option<ColorImage>,
+    pub captured_image: Arc<Mutex<Option<ColorImage>>>,
     pub texture: Option<TextureHandle>,
     pub mode: Mode,
     pub crop_rect: Rect,
@@ -51,7 +52,7 @@ pub struct Editor {
 impl Default for Editor {
     fn default() -> Self {
         Self {
-            captured_image: None,
+            captured_image: Arc::new(Mutex::new(None)),
             texture: None,
             mode: Mode::Idle,
             crop_rect: Rect::NOTHING,
@@ -60,7 +61,7 @@ impl Default for Editor {
             undone_annotations: Vec::new(),
             current_color: Color32::RED,
             current_width: 7.5,
-            current_fill_color: Color32::TRANSPARENT,
+            current_fill_color: Color32::RED,
             current_font_size: 16.0,
             fill_color_enabled: false,
         }
@@ -143,7 +144,7 @@ impl Editor {
     }
 
     fn update_texture(&mut self, ui: &mut Ui, crop: Option<Rect>) {
-        let Some(image) = self.captured_image.clone() else {
+        let Some(image) = self.captured_image.lock().unwrap().clone() else {
             panic!()
         };
         if let Some(crop_rect) = crop {
@@ -571,7 +572,6 @@ impl Editor {
             self.tool_button(ui, &ZOOMM, Mode::SetZoom(100.0));
             self.tool_button(ui, &ZOOMP, Mode::SetZoom(50.0));
         }
-        let alpha: Alpha = Alpha::OnlyBlend;
         ui.shrink_width_to_current();
         Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }

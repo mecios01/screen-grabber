@@ -2,8 +2,8 @@ use std::io::Cursor;
 use std::path::PathBuf;
 
 use chrono::Utc;
-use egui::ColorImage;
-use image::{ImageOutputFormat, RgbaImage};
+use egui::{ColorImage, IconData};
+use image::{GenericImageView, ImageOutputFormat, RgbaImage};
 use skia_safe::{Data, Image};
 
 pub fn export_color_image_to_skia_image(ci: &ColorImage) -> Option<Image> {
@@ -48,4 +48,15 @@ pub fn save_dialog() -> Option<PathBuf> {
         .set_directory(&path)
         .save_file();
     res
+}
+
+pub fn load_icon(path: &str) -> Result<IconData, String> {
+    let icon = image::open(path).map_err(|e| format!("Failed to load icon: {}", e))?;
+    let (width, height) = icon.dimensions();
+    let icon = IconData {
+        rgba: icon.into_bytes(),
+        width,
+        height,
+    };
+    Ok(icon)
 }

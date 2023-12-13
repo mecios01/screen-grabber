@@ -1,4 +1,16 @@
-use egui::Image;
+use egui::{IconData, Image};
+use image::{load_from_memory_with_format, GenericImageView, ImageFormat};
+
+pub fn app_icon() -> IconData {
+    let bytes = include_bytes!("../assets/icons/screengrabber.png");
+    let image = load_from_memory_with_format(bytes, ImageFormat::Png).unwrap();
+    let (width, height) = image.dimensions();
+    IconData {
+        width,
+        height,
+        rgba: image.into_bytes(),
+    }
+}
 
 lazy_static::lazy_static! {
 pub static ref ARROW :Image<'static>  = Image::new(egui::include_image!("../assets/icons/light/arrow.png"));
