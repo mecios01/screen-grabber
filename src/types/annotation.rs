@@ -12,6 +12,7 @@ pub enum Annotation {
     Text(TextAnnotation),
     Eraser(EraserAnnotation),
     Crop(CropAnnotation),
+    Highlighter(HighlighterAnnotation),
 }
 
 impl Annotation {
@@ -32,6 +33,10 @@ impl Annotation {
 
     pub fn pencil(starting: Pos2, color: Color32, width: f32) -> Self {
         Self::Pencil(PencilAnnotation::new(starting, color, width))
+    }
+
+    pub fn highlighter(starting: Pos2, color: Color32, width: f32) -> Self {
+        Self::Highlighter(HighlighterAnnotation::new(starting, color, width))
     }
 
     pub fn text(pos: Pos2, color: Color32, font_size: f32) -> Self {
@@ -58,6 +63,7 @@ impl Annotation {
             Annotation::Rect(r) => r.render(scaling, rect_transform),
             Annotation::Arrow(a) => a.render(scaling, rect_transform),
             Annotation::Pencil(p) => p.render(scaling, rect_transform),
+            Annotation::Highlighter(h) => h.render(scaling, rect_transform),
             Annotation::Text(t) => t.render(scaling, rect_transform, painter, editing),
             Annotation::Eraser(_) => Shape::Noop,
             Annotation::Crop(c) => c.render(scaling, rect_transform),
@@ -350,6 +356,41 @@ pub struct PencilAnnotation {
 }
 
 impl PencilAnnotation {
+    fn new(pos: Pos2, color: Color32, width: f32) -> Self {
+        Self {
+            points: vec![pos],
+            color,
+            width,
+        }
+    }
+    pub fn update_points(&mut self, pos: Pos2) {
+        if let Some(last) = self.points.last() {
+            if pos == *last {
+                return;
+            }
+        }
+        self.points.push(pos);
+    }
+
+    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+        let line: Vec<Pos2> = self
+            .points
+            .iter()
+            .map(|p| rect_transform.transform_pos(*p))
+            .collect();
+
+        Shape::line(line, Stroke::new(self.width * scaling, self.color))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct HighlighterAnnotation {
+    pub points: Vec<Pos2>,
+    pub color: Color32,
+    pub width: f32,
+}
+
+impl HighlighterAnnotation {
     fn new(pos: Pos2, color: Color32, width: f32) -> Self {
         Self {
             points: vec![pos],

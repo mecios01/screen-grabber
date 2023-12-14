@@ -92,7 +92,7 @@ impl Editor {
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::Erase => self.manage_eraser(ui, to_original),
-            Mode::Highlight => {}
+            Mode::Highlight => self.manage_highlighter(ui, to_original),
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
             Mode::Redo => {}
@@ -391,6 +391,35 @@ impl Editor {
             p.update_points(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if p.points.len() > 1 {
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
+                }
+            }
+        }
+    }
+
+    fn manage_highlighter(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        let Some(input) = input_res.interact_pointer_pos() else {
+            return;
+        };
+
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
+            let highlight_color = Color32::from_rgba_unmultiplied(212, 255, 50, 100);
+            self.current_annotation = Some(Annotation::highlighter(
+                pos,
+                highlight_color,
+                self.current_width + 10.0,
+            ));
+            return;
+        }
+
+        if let Some(Annotation::Highlighter(ref mut h)) = self.current_annotation.as_mut() {
+            h.update_points(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if h.points.len() > 1 {
                     self.add_annotation(self.current_annotation.clone().unwrap());
                 } else {
                     self.current_annotation = None;
