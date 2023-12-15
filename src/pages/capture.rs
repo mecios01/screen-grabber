@@ -27,6 +27,7 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     app.editor.show_tool_buttons(ui);
+                    app.editor.show_color_picker(ui);
                     app.editor.show_fill_color_picker(ui);
                 })
             });
