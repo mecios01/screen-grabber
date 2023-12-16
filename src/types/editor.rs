@@ -656,7 +656,7 @@ impl Editor {
         .on_hover_text("Fill")
         .on_disabled_hover_text("Fill (disabled)");
     }
-    pub fn make_stroke_ui(&mut self, ui: &mut Ui) {
+    pub fn show_color_picker(&mut self, ui: &mut Ui) {
         ui.add(
             DragValue::new(&mut self.current_width)
                 .speed(0.1)
