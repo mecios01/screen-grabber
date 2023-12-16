@@ -153,11 +153,11 @@ impl ScreenGrabber {
                                 Rasterizer::new(save_data.canvas_size, save_data.crop_area);
                             rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
                             rasterizer.add_annotations(save_data.annotations.as_ref());
-                            match rasterizer.export(&save_data.path) {
-                                Some(_) => Some(()),
-                                None => None,
+                            let signal = match rasterizer.export(&save_data.path) {
+                                Some(_) => SlaveSignal::SaveDone,
+                                None => SlaveSignal::Aborted,
                             };
-                            let _ = channel.sender.send(SlaveSignal::SaveDone);
+                            let _ = channel.sender.send(signal);
                         }
                         MasterSignal::Shutdown => {
                             break 'outer;
@@ -201,7 +201,7 @@ impl ScreenGrabber {
                         self.is_capturing = false;
                     }
                     SlaveSignal::Aborted => {
-                        println!("Save Done or aborted");
+                        println!("Save aborted");
                         self.is_capturing = false;
                         self.is_saving = false;
                     }

@@ -453,7 +453,7 @@ impl CropAnnotation {
         self.p1 = rect.min;
         self.p2 = rect.max;
     }
-    pub fn render(&self, scaling: f32, rect_transform: RectTransform) -> Shape {
+    pub fn render(&self, _scaling: f32, rect_transform: RectTransform) -> Shape {
         if self.finished {
             return Shape::Noop;
         };

@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
 use eframe::emath::{Rect, RectTransform};
@@ -39,6 +40,7 @@ pub struct Editor {
     pub current_width: f32,
     pub current_fill_color: Color32,
     pub current_font_size: f32,
+    pub width_range: RangeInclusive<f32>,
     pub fill_color_enabled: bool,
 }
 
@@ -56,12 +58,21 @@ impl Default for Editor {
             current_width: 7.5,
             current_fill_color: Color32::RED,
             current_font_size: 16.0,
+            width_range: Editor::default_width_range(),
             fill_color_enabled: false,
         }
     }
 }
 
 impl Editor {
+    #[inline]
+    fn default_width_range() -> RangeInclusive<f32> {
+        0.5..=10.0
+    }
+    #[inline]
+    fn default_width_range_highlighter() -> RangeInclusive<f32> {
+        10.0..=50.0
+    }
     pub fn manage(&mut self, ui: &mut Ui) {
         let image_ratio = self.texture.as_ref().unwrap().aspect_ratio();
         let space_ratio = ui.max_rect().aspect_ratio();
@@ -84,6 +95,14 @@ impl Editor {
         self.manage_render(ui.painter(), to_screen);
     }
     pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        if self.mode != Mode::Highlight
+            && self.width_range == Editor::default_width_range_highlighter()
+        {
+            self.width_range = Editor::default_width_range();
+            if !self.width_range.contains(&self.current_width) {
+                self.current_width = *self.width_range.end();
+            }
+        }
         match self.mode {
             Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
@@ -400,6 +419,9 @@ impl Editor {
     }
 
     fn manage_highlighter(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        if self.width_range != Editor::default_width_range_highlighter() {
+            self.width_range = Editor::default_width_range_highlighter();
+        }
         let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
         let Some(input) = input_res.interact_pointer_pos() else {
             return;
@@ -407,10 +429,9 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started_by(PointerButton::Primary) {
-            let highlight_color = Color32::from_rgba_unmultiplied(212, 255, 50, 100);
             self.current_annotation = Some(Annotation::highlighter(
                 pos,
-                highlight_color,
+                self.current_color,
                 self.current_width + 10.0,
             ));
             return;
@@ -585,7 +606,7 @@ impl Editor {
             self.tool_button(ui, &REDO, Mode::Redo);
         }
         ui.shrink_width_to_current();
-        Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
+        self.make_stroke_ui(ui);
     }
     pub fn show_fill_dropdown(&mut self, ui: &mut Ui) {
         let enabled_stoke = ui.visuals().widgets.hovered.fg_stroke;
@@ -619,14 +640,14 @@ impl Editor {
         .on_hover_text("Fill")
         .on_disabled_hover_text("Fill (disabled)");
     }
-    pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=100.0))
-            .on_hover_text("Width");
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
-        egui::color_picker::color_edit_button_srgba(ui, color, Alpha::OnlyBlend)
+    pub fn make_stroke_ui(&mut self, ui: &mut Ui) {
+        ui.add(
+            DragValue::new(&mut self.current_width)
+                .speed(0.1)
+                .clamp_range(self.width_range.clone()),
+        )
+        .on_hover_text("Width");
+        egui::color_picker::color_edit_button_srgba(ui, &mut self.current_color, Alpha::OnlyBlend)
             .on_hover_text("Stroke");
         ui.add_space(ui.spacing().item_spacing.y);
     }
