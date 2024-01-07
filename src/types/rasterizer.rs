@@ -1,7 +1,9 @@
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::{Cursor, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+use arboard::ImageData;
 use egui::{Color32, Pos2};
 use image::ImageFormat;
 use skia_safe::paint::Cap;
@@ -15,6 +17,7 @@ use crate::types::annotation::{
     Annotation, ArrowAnnotation, CircleAnnotation, HighlighterAnnotation, PencilAnnotation,
     RectAnnotation, SegmentAnnotation, TextAnnotation,
 };
+use crate::types::save_destination::SaveDestination;
 
 pub struct Rasterizer {
     //size of the desired cropped area
@@ -123,7 +126,7 @@ impl Rasterizer {
         return Some(());
     }
     //export the image into the given format (or PNG then convert)
-    pub fn export<P: AsRef<Path>>(self, path: P) -> Option<()> {
+    pub fn export(self, dest: SaveDestination) -> Option<()> {
         let mut _self = self;
         let ref dim = _self.crop_area;
         let image_res = _self.surface.image_snapshot().make_subset(
@@ -138,41 +141,68 @@ impl Rasterizer {
             Some(image) => {
                 let mut context = _self.surface.direct_context();
                 let mut default_encoder = EncodedImageFormat::PNG;
-                if path
-                    .as_ref()
-                    .extension()
-                    .is_some_and(|e| e.to_str().unwrap() == "jpg")
-                {
-                    default_encoder = EncodedImageFormat::JPEG
+
+                match dest {
+                    SaveDestination::RealPath(ref p) => {
+                        if p.extension().is_some_and(|e| e.to_str().unwrap() == "jpg") {
+                            default_encoder = EncodedImageFormat::JPEG
+                        }
+                    }
+                    _ => {}
                 }
+
                 let res = image.encode(context.as_mut(), default_encoder, Some(100));
                 if res.is_none() {
                     eprintln!("Cannot decode");
                     return None;
                 }
-                let mut pb = PathBuf::from(path.as_ref());
-                match path.as_ref().extension() {
-                    Some(e) => match e.to_str() {
-                        Some("png") => {}
-                        Some("jpg") => {}
-                        Some(_) => return Self::save_other_formats(res.unwrap(), pb),
-                        None => {
-                            pb.set_extension("png");
-                        }
-                    },
-                    _ => {}
-                };
 
-                //fallback save as PNG
-                let d = res.unwrap();
-                let bytes = d.as_bytes();
-                let mut file = File::create(pb.as_path()).unwrap();
-                match file.write_all(bytes) {
-                    Ok(()) => Some(()),
-                    Err(e) => {
-                        eprintln!("{:?}", e);
-                        None
+                if dest.is_path() {
+                    let mut pb = dest.path().unwrap();
+                    match pb.extension() {
+                        Some(e) => match e.to_str() {
+                            Some("png") => {}
+                            Some("jpg") => {}
+                            Some(_) => return Self::save_other_formats(res.unwrap(), pb),
+                            None => {
+                                pb.set_extension("png");
+                            }
+                        },
+                        _ => {}
                     }
+                    //fallback save as PNG
+                    let d = res.unwrap();
+                    let bytes = d.as_bytes();
+                    let mut file = File::create(pb.as_path()).unwrap();
+                    match file.write_all(bytes) {
+                        Ok(()) => Some(()),
+                        Err(e) => {
+                            eprintln!("{:?}", e);
+                            None
+                        }
+                    }
+                } else {
+                    let d = res.unwrap();
+                    let unc = d.as_bytes();
+                    let img = image::load_from_memory(unc).unwrap();
+                    let fs = img.as_flat_samples_u8().unwrap();
+
+                    let bytes = Cow::Borrowed(fs.samples);
+                    let arc = dest.clipboard().unwrap();
+                    let mut guard = match arc.lock() {
+                        Ok(guard) => guard,
+                        Err(_) => return None,
+                    };
+
+                    let result = guard.set_image(ImageData {
+                        width: image.width() as usize,
+                        height: image.height() as usize,
+                        bytes,
+                    });
+                    return match result {
+                        Ok(_) => Some(()),
+                        Err(e) => None,
+                    };
                 }
             }
             None => {

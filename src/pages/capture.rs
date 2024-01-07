@@ -16,6 +16,12 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
             {
                 app.save_as();
             }
+            if ui
+                .add_enabled(!app.is_saving, egui::Button::new("Copy to clipboard"))
+                .clicked()
+            {
+                app.save_clipboard();
+            }
             app.editor.show_fill_dropdown(ui);
         });
         egui::SidePanel::left("left-panel-toolbox")

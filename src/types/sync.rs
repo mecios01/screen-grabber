@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
@@ -6,6 +5,7 @@ use crossbeam::channel::{unbounded, Receiver, Sender};
 use egui::{ColorImage, Pos2};
 
 use crate::types::annotation::Annotation;
+use crate::types::save_destination::SaveDestination;
 
 ///Signals send from the main thread to the auxiliary threads
 pub enum MasterSignal {
@@ -76,7 +76,7 @@ where
 ///use this struct to wrap the data needed to export the screenshot image(s)
 pub struct SaveImageData {
     pub image_ref: Arc<Mutex<Option<ColorImage>>>,
-    pub path: PathBuf,
+    pub path: SaveDestination,
     pub canvas_size: (u32, u32),
     pub crop_area: (Pos2, Pos2),
     pub annotations: Vec<Annotation>,
@@ -86,7 +86,7 @@ impl SaveImageData {
     #[inline]
     pub fn new(
         image_ref: Arc<Mutex<Option<ColorImage>>>,
-        path: PathBuf,
+        path: SaveDestination,
         crop_area: (Pos2, Pos2),
         canvas_size: (u32, u32),
         annotations: Vec<Annotation>,
