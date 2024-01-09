@@ -2,7 +2,8 @@ use crate::pages::types::{PageType, SettingType};
 use crate::types::config::{Config, Status};
 use crate::types::screen_grabber::ScreenGrabber;
 use egui::panel::{Side, TopBottomSide};
-use egui::{Align, Color32, FontId, Layout};
+use egui::{Align, Color32, FontId, Layout, ScrollArea};
+use egui_keybind::{Keybind};
 use egui_modal::Modal;
 
 pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -59,10 +60,28 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                 }
                 SettingType::Keybindings => {
                     ui.label("KEYBINDINGS");
+                    ScrollArea::vertical().show(ui, |ui|{
+                        ui.add_space(100.0);
+                        ui.label("Global Hotkeys").highlight();
+                        for h in app.config.hotkeys.read().unwrap().iter(){
+                            ui.horizontal(|ui|{
+                                ui.label(h.key_bind.as_str());
+                                ui.label(h.action.to_string())
+                            });
+                        }
+                        ui.add_space(100.0);
+                        ui.label("In App Hotkeys").highlight();
+                        for h in app.config.in_app_hotkeys.iter_mut(){
+                            if ui.add(Keybind::new(&mut h.shortcut, h.action.to_string()).with_text(&h.action.to_string())).changed() {
+                                println!("Rebinded!");
+                            }
+                        }
+                    });
+
                 }
                 SettingType::Appearance => {
                     ui.label("APPEARANCE");
-                    egui::widgets::global_dark_light_mode_buttons(ui);
+                    egui::widgets::global_dark_light_mode_buttons(ui)
                 }
                 SettingType::About => {
                     ui.label("ABOUT");

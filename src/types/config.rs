@@ -1,4 +1,8 @@
+use std::collections::HashSet;
+use std::sync::{Arc, RwLock};
+use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
+use crate::pages::types::{AppBinding, GlobalBinding, HotKeyAction};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum Status {
@@ -13,11 +17,12 @@ pub enum Status {
 pub struct Config {
     #[serde(skip)]
     pub status: Status,
-    // 1379144576
     //general
     pub start_minimized: bool,
     example_text: String,
     //keybindings
+    pub hotkeys: Arc<RwLock<HashSet<GlobalBinding>>>,
+    pub in_app_hotkeys: Vec<AppBinding>,
     //appearance
     // theme: Visuals,
 }
@@ -31,6 +36,14 @@ impl Default for Config {
             start_minimized: false,
             example_text: "".into(),
             //keybindings
+            hotkeys: Arc::new(RwLock::new(HashSet::from([
+                GlobalBinding {id: 558831576, key_bind: String::from("Shift+C"), action: HotKeyAction::Capture}
+            ]))),
+            in_app_hotkeys: vec![
+                AppBinding {id: 1, shortcut: Shortcut::default(), action: HotKeyAction::Save},
+                AppBinding {id: 2, shortcut: Shortcut::default(), action: HotKeyAction::Reset},
+                AppBinding {id: 3, shortcut: Shortcut::default(), action: HotKeyAction::None}
+            ],
             //appearance
             // theme: Visuals::dark(),
         }
@@ -39,7 +52,9 @@ impl Default for Config {
 
 impl PartialEq for Config {
     fn eq(&self, other: &Self) -> bool {
-        self.start_minimized == other.start_minimized && self.example_text == other.example_text
+        self.start_minimized == other.start_minimized &&
+            self.example_text == other.example_text &&
+            self.in_app_hotkeys == other.in_app_hotkeys
     }
 }
 

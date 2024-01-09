@@ -21,6 +21,9 @@ image = "0.24.7"
 chrono = "0.4.31"
 rfd = { version = "0.12.1", default-features = false, features = ["xdg-portal"] }
 crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
+egui-keybind = {version = "0.2.4", features = ["serde"]}
+egui-bind = "0.9.0"
+#rdev = { version = "0.5.3", features = ["unstable_grab"] }
 
 [profile.release]
 strip = true

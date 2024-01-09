@@ -1,20 +1,21 @@
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crossbeam::channel::TryRecvError;
-use egui::{
-    ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions,
-    Vec2, ViewportCommand,
-};
+use crossbeam::channel::{TryRecvError};
+use egui::{ColorImage, Context, FontFamily, FontId, KeyboardShortcut, ModifierNames, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2, ViewportCommand};
+use egui::accesskit::Action;
+use egui_keybind::{Bind, Keybind, Shortcut};
 use global_hotkey::hotkey::HotKey;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager};
 use serde::{Deserialize, Serialize};
+use serde::__private::de::Content::String;
 
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::types::{PageType, SettingType};
+use crate::pages::types::{AppBinding, GlobalBinding, HotKeyAction, PageType, SettingType};
 use crate::types::config::Config;
 use crate::types::editor::Editor;
 use crate::types::rasterizer::Rasterizer;
@@ -45,14 +46,15 @@ pub struct ScreenGrabber {
     pub config: Config,
     #[serde(skip)]
     pub prev_config: Config,
-
+    #[serde(skip)]
+    pub first_shortcut: Shortcut,//tmp
     //sync stuff
     #[serde(skip)]
     pub hotkey_channel: DoubleChannel<MasterSignal, SlaveSignal>,
     #[serde(skip)]
     pub save_channel: DoubleChannel<MasterSignal, SlaveSignal>,
     #[serde(skip)]
-    pub thread_handles: Vec<JoinHandle<()>>,
+    pub thread_handles: std::vec::Vec<JoinHandle<()>>,
 }
 
 impl Default for ScreenGrabber {
@@ -68,6 +70,7 @@ impl Default for ScreenGrabber {
             active_section: SettingType::General,
             config: Config::load_or_default(),
             prev_config: Config::load_or_default(),
+            first_shortcut: Shortcut::NONE,//tmp
             hotkey_channel: DoubleChannel::new(),
             save_channel: DoubleChannel::new(),
             thread_handles: vec![],
@@ -89,28 +92,64 @@ impl ScreenGrabber {
         &mut self,
         channel: DoubleChannel<SlaveSignal, MasterSignal>,
     ) -> JoinHandle<()> {
+        // let old_hotkeys = self.config.old_hotkeys.clone();
+        let hotkeys = self.config.hotkeys.clone();
         thread::spawn(move || {
             println!("HOTKEYS THREAD ON");
 
             let manager = GlobalHotKeyManager::new().unwrap();
-            let hotkey = HotKey::try_from("shift+q").unwrap();
-            manager.register(hotkey).unwrap();
+            let hks : std::vec::Vec<HotKey> = hotkeys
+                .read()
+                .unwrap()
+                .iter()
+                .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap()).collect();
+            manager.register_all(&hks).unwrap();
+
             let receiver = GlobalHotKeyEvent::receiver();
 
             //init stuff
             'outer: loop {
                 match channel.receiver.try_recv() {
                     Ok(signal) => match signal {
-                        MasterSignal::SetHotkeys(_) => {}
+                        MasterSignal::SetHotkeys(_) => {
+
+
+                            // let str : &str = &h.deref().read().unwrap();
+                            // let hotkey = HotKey::try_from(str).unwrap();
+                            // manager.register(hotkey).unwrap();
+                            // hks.push(hotkey)
+                        }
                         MasterSignal::Shutdown => break 'outer,
                         _ => {}
                     },
                     Err(TryRecvError::Disconnected) => break 'outer,
                     _ => {}
                 }
+
                 match receiver.try_recv() {
-                    Ok(hotkey) => {
-                        println!("hotkey pressed, {}", hotkey.id);
+                    Ok(event) => {
+                        match event.state {
+                            global_hotkey::HotKeyState::Pressed => {
+                                let guard = hotkeys.read().unwrap();
+                                let app_bind = guard.iter().find(|&a| a.id == event.id);
+                                match app_bind {
+                                    Some(a) => {
+                                        // println!("{:?}", &a.action)
+                                        match a.action {
+                                            HotKeyAction::Capture => {
+                                                channel.sender.send(SlaveSignal::KeyPressed(event.id));
+                                            }
+                                            HotKeyAction::Save => {}
+                                            HotKeyAction::Reset => {}
+                                            HotKeyAction::None => {}
+                                        }
+                                    }
+                                    None => {}
+                                }
+                            }
+                            global_hotkey::HotKeyState::Released => {}
+                            _ => {}
+                        }
                     }
                     Err(_) => {}
                 }
@@ -220,9 +259,16 @@ impl ScreenGrabber {
         };
         //TODO
         if let Ok(signal) = self.hotkey_channel.receiver.try_recv() {
+            println!("Signal received!");
             match signal {
-                SlaveSignal::KeyPressed(_) => {}
-                SlaveSignal::KeyReleased(_) => {}
+                SlaveSignal::KeyPressed(id) => {
+                    println!("Key pressed with id = {}", id);
+                    self.execute_action(id)
+
+                }
+                SlaveSignal::KeyReleased(id) => {
+                    println!("Key released with id = {}", id)
+                }
                 _ => {}
             }
         }
@@ -233,11 +279,11 @@ impl ScreenGrabber {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
+        let config = Config::load_or_default();
+        cc.egui_ctx.send_viewport_cmd(ViewportCommand::Minimized(config.start_minimized));
         set_font_style(&cc.egui_ctx);
-
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, APP_KEY).unwrap_or_default();
         }
@@ -275,6 +321,33 @@ impl ScreenGrabber {
                 self.capture_delay_s,
             )));
         self.is_capturing = true;
+    }
+
+    pub fn execute_action(&mut self, id: u32) {
+        let global_hotkeys = self.config.hotkeys.read().unwrap();
+        let global_shortcut = global_hotkeys.iter().find(|&s| s.id == id);
+
+        let app_hotkeys = &self.config.in_app_hotkeys;
+        let app_shortcut = app_hotkeys.iter().find(|&s| s.id == id);
+
+        let shortcut = if global_shortcut.is_some() { &global_shortcut.unwrap().action} else { &app_shortcut.unwrap().action };
+
+        match shortcut {
+            HotKeyAction::Capture => {
+                // self.capture(); cannot call capture(): cannot borrow *self as mutable because it is also borrowed as immutable
+                let _ = self
+                    .save_channel
+                    .sender
+                    .send(MasterSignal::StartCaptureAfter(Duration::from_secs_f32(
+                        self.capture_delay_s
+                    )));
+            }
+            HotKeyAction::Save => {
+
+            }
+            HotKeyAction::Reset => {}
+            HotKeyAction::None => {}
+        }
     }
 
     pub fn save_as(&mut self) {
@@ -317,17 +390,50 @@ impl ScreenGrabber {
     }
 
     pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
-        println!("{}", &self.config.get_example_test());
+        // println!("{}", &self.config.get_example_test());
         confy::store("screen-grabber", "config", &self.config)?;
         Ok(())
+    }
+
+    pub fn set_hotkey(&self, hotkeys_str: std::string::String){
+        // TODO: handle lock guard
+        let _ = self
+            .hotkey_channel
+            .sender
+            .send(MasterSignal::SetHotkeys(Arc::new(RwLock::new(hotkeys_str))));
+    }
+
+    pub fn manage_in_app_hotkeys(&mut self, ctx: &Context) {
+        for s in self.config.in_app_hotkeys.iter(){
+            if ctx.input_mut(|i| s.shortcut.pressed(i)) {
+                match s.action {
+                    HotKeyAction::Save => {
+                        let guard = self.editor.captured_image.lock().unwrap();
+                        let capture_exists = guard.is_some();
+                        drop(guard);
+                        if capture_exists {
+                            println!("Image can be saved!");
+                            //TODO
+                        }
+                        else {
+                            println!("Image cannot be saved, it does not exists!");
+                        }
+                    },
+                    HotKeyAction::Reset => {},
+                    _ => {}
+                }
+                // println!("{}", &s.shortcut.format(&ModifierNames::NAMES, cfg!(target_os = "macos")))
+            };
+        }
     }
 }
 
 impl eframe::App for ScreenGrabber {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         self.check_signals(ctx);
         self.manage_window_status(ctx);
         ctx.request_repaint();
+        self.manage_in_app_hotkeys(ctx);
         match self.current_page {
             PageType::Launcher => launcher_page(self, ctx, frame),
             PageType::Capture => capture_page(self, ctx, frame),
@@ -350,7 +456,7 @@ impl eframe::App for ScreenGrabber {
     }
 }
 
-fn set_font_style(ctx: &egui::Context) {
+fn set_font_style(ctx: &Context) {
     //Defaults are pretty good but in case we want to change them or allow the user to do so this
     // is the way to do it (at least one possible way)
 
