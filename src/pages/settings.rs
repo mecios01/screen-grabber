@@ -3,7 +3,7 @@ use crate::types::config::{Config, Status};
 use crate::types::screen_grabber::ScreenGrabber;
 use egui::panel::{Side, TopBottomSide};
 use egui::{Align, Color32, FontId, Layout, ScrollArea};
-use egui_keybind::{Keybind};
+use egui_keybind::{Bind, Keybind};
 use egui_modal::Modal;
 
 pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -13,19 +13,18 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
 
     egui::containers::CentralPanel::default().show(ctx, |ui| {
         egui::TopBottomPanel::new(TopBottomSide::Top, "header").show_inside(ui, |ui| {
-            ui.horizontal(|ui|{
+            ui.horizontal(|ui| {
                 ui.label(
                     egui::RichText::new("Settings")
                         .color(Color32::DARK_GREEN)
                         .font(FontId::proportional(40.0)),
                 );
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui|{
-                    if ui.button("Back").clicked(){
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui.button("Back").clicked() {
                         app.set_page(PageType::Launcher)
                     }
                 })
             });
-
         });
 
         egui::SidePanel::new(Side::Left, "settings-sections")
@@ -60,24 +59,30 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                 }
                 SettingType::Keybindings => {
                     ui.label("KEYBINDINGS");
-                    ScrollArea::vertical().show(ui, |ui|{
+                    ScrollArea::vertical().show(ui, |ui| {
                         ui.add_space(100.0);
                         ui.label("Global Hotkeys").highlight();
-                        for h in app.config.hotkeys.read().unwrap().iter(){
-                            ui.horizontal(|ui|{
-                                ui.label(h.key_bind.as_str());
-                                ui.label(h.action.to_string())
-                            });
+                        
+                        //Global Bindings
+                        let mut guard = app.config.hotkeys.write().unwrap();
+                        for h in guard.iter_mut(){
+                            if ui.add(Keybind::new(&mut h.shortcut, h.action.to_string()).with_text(&h.action.to_string())).changed(){
+                                h.key_bind = h.shortcut.format(&egui::ModifierNames::NAMES, cfg!(target_os = "macos"));
+                                println!("Global Rebinded!");
+                            }
                         }
+                        drop(guard);
+                        
+                        //In App Bindings
                         ui.add_space(100.0);
                         ui.label("In App Hotkeys").highlight();
-                        for h in app.config.in_app_hotkeys.iter_mut(){
+                        for h in app.config.in_app_hotkeys.iter_mut() {
                             if ui.add(Keybind::new(&mut h.shortcut, h.action.to_string()).with_text(&h.action.to_string())).changed() {
-                                println!("Rebinded!");
+                                h.key_bind = h.shortcut.format(&egui::ModifierNames::NAMES, cfg!(target_os = "macos"));
+                                println!("In App Rebinded!");
                             }
                         }
                     });
-
                 }
                 SettingType::Appearance => {
                     ui.label("APPEARANCE");

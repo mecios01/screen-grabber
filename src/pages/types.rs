@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result};
 use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
@@ -17,7 +16,7 @@ pub enum SettingType {
     About,
 }
 
-#[derive(Eq, Hash, Serialize, Deserialize, Clone, Debug)]
+#[derive(Eq, Serialize, Deserialize, Clone, Debug)]
 pub enum HotKeyAction {
     Capture,
     Save,
@@ -47,42 +46,28 @@ impl PartialEq for HotKeyAction {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Debug)]
-pub struct GlobalBinding {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Binding {
     pub id: u32,
     pub key_bind: String,
-    pub action: HotKeyAction,
-}
-
-impl Default for GlobalBinding {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            key_bind: String::new(),
-            action: HotKeyAction::None,
-        }
-    }
-}
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct AppBinding {
-    pub id: u32,
     pub shortcut: Shortcut,
     pub action: HotKeyAction,
 }
 
-impl PartialEq<Self> for AppBinding {
-    fn eq(&self, other: &Self) -> bool {
-        self.shortcut.eq(&other.shortcut)/* && self.action.eq(&other.action)*/
-    }
-}
-
-impl Default for AppBinding {
+impl Default for Binding {
     fn default() -> Self {
         Self {
             id: 0,
-            shortcut: Shortcut::default(),
+            key_bind: String::new(),
+            shortcut: Shortcut::NONE,
             action: HotKeyAction::None,
         }
+    }
+}
+
+impl PartialEq<Self> for Binding {
+    fn eq(&self, other: &Self) -> bool {
+        self.shortcut.eq(&other.shortcut)/* && self.action.eq(&other.action)*/
     }
 }
 

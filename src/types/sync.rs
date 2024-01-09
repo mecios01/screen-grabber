@@ -12,7 +12,7 @@ pub enum MasterSignal {
     ///asks the thread to capture the screenshot after Duration
     StartCaptureAfter(Duration),
     ///setup the hotkeys or renew them after changes
-    SetHotkeys(Arc<RwLock<String>>),
+    SetHotkey(String),
     ///asks the thread to export and save the image into the path
     SaveImage(SaveImageData),
     ///makes the thread exit the main loop then terminate (so we can join it before exiting)
