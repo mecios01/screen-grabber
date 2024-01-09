@@ -37,7 +37,7 @@ impl Default for Config {
             example_text: "".into(),
             //keybindings
             hotkeys: Arc::new(RwLock::new(vec![
-                Binding { id: 1, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::Capture }
+                Binding { id: 1, key_bind: String::from("Ctrl+C"), shortcut: Shortcut::default(), action: HotKeyAction::Capture }
             ])),
             in_app_hotkeys: vec![
                 Binding { id: 1, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::Save },

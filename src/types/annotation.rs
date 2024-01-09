@@ -305,7 +305,7 @@ impl TextAnnotation {
             FontId::monospace(self.size * scaling),
             self.color,
         );
-        let text_shape = Shape::Text(TextShape::new(to_screen.transform_pos(self.pos), galley));
+        let text_shape = Shape::Text(TextShape::new(to_screen.transform_pos(self.pos), galley, Color32::BLACK)); //added Color32 field after egui update
         if !editing {
             return text_shape;
         }
