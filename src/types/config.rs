@@ -1,8 +1,10 @@
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
+use egui::{Key, Modifiers};
 use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
 use crate::pages::types::{Binding, HotKeyAction};
+use crate::types::utils::new_hotkey_from_str;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum Status {
@@ -37,7 +39,9 @@ impl Default for Config {
             example_text: "".into(),
             //keybindings
             hotkeys: Arc::new(RwLock::new(vec![
-                Binding { id: 1, key_bind: String::from("Ctrl+C"), shortcut: Shortcut::default(), action: HotKeyAction::Capture }
+                Binding { id: new_hotkey_from_str("Ctrl+C".to_string()), key_bind: String::from("Ctrl+C"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::CTRL, Key::C)), None), action: HotKeyAction::Capture },
+                Binding { id: new_hotkey_from_str("Ctrl+Shift+E".to_string()), key_bind: String::from("Ctrl+Shift+E"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, Key::E)), None), action: HotKeyAction::None }
+
             ])),
             in_app_hotkeys: vec![
                 Binding { id: 1, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::Save },

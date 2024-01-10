@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use egui::{ColorImage, IconData};
+use global_hotkey::hotkey::HotKey;
 use image::{GenericImageView, ImageOutputFormat, RgbaImage};
 use skia_safe::{Data, Image};
 
@@ -59,4 +60,9 @@ pub fn load_icon(path: &str) -> Result<IconData, String> {
         height,
     };
     Ok(icon)
+}
+
+pub fn new_hotkey_from_str(str: String) -> u32 {
+    let id = HotKey::try_from(str.clone()).unwrap().id();
+    id
 }

@@ -1,4 +1,3 @@
-use std::sync::{Arc, RwLock};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -18,7 +17,7 @@ use crate::types::config::Config;
 use crate::types::editor::Editor;
 use crate::types::rasterizer::Rasterizer;
 use crate::types::sync::{DoubleChannel, MasterSignal, SaveImageData, SlaveSignal};
-use crate::types::utils::{export_color_image_to_skia_image, save_dialog};
+use crate::types::utils::{export_color_image_to_skia_image, new_hotkey_from_str, save_dialog};
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -93,7 +92,7 @@ impl ScreenGrabber {
             println!("HOTKEYS THREAD ON");
 
             let manager = GlobalHotKeyManager::new().unwrap();
-            let hks : std::vec::Vec<HotKey> = hotkeys
+            let mut hks: Vec<HotKey> = hotkeys
                 .read()
                 .unwrap()
                 .iter()
@@ -106,22 +105,44 @@ impl ScreenGrabber {
             'outer: loop {
                 match channel.receiver.try_recv() {
                     Ok(signal) => match signal {
-                        MasterSignal::SetHotkey(h) => {}
+                        MasterSignal::SetHotkey() => {
+                            //register all new hotkeys
+                            if let Ok(guard) = hotkeys.read() {
+                                manager.unregister_all(&hks).unwrap();
+                                hks = guard
+                                    .iter()
+                                    .map(|kb|
+                                        HotKey::try_from(kb.key_bind.as_str()).unwrap()
+                                    ).collect();
+                                manager.register_all(&hks).unwrap();
+                            }
+                            //updating hotkey ids
+                            if let Ok(mut guard) = hotkeys.write(){
+                                for h in guard.iter_mut(){
+                                    h.id = new_hotkey_from_str(h.key_bind.clone())
+                                }
+                            }
+                        }
                         MasterSignal::Shutdown => break 'outer,
                         _ => {}
                     },
                     Err(TryRecvError::Disconnected) => break 'outer,
                     _ => {}
                 }
-
-                match receiver.try_recv() {
-                    Ok(event) => {
-                        match event.state {
-                            global_hotkey::HotKeyState::Pressed => {}
-                            global_hotkey::HotKeyState::Released => {}
+                if let Ok(event) = receiver.try_recv() {
+                    match event.state {
+                        global_hotkey::HotKeyState::Pressed => {
+                            // println!("global ciao ciao");
+                            let mut action = HotKeyAction::None;
+                            if let Ok(guard) = hotkeys.read() {
+                                action = guard.iter().find(|h| h.id == event.id).unwrap().action.clone();
+                            }
+                            let _ = channel
+                                .sender
+                                .send(SlaveSignal::KeyPressed(action));
                         }
+                        global_hotkey::HotKeyState::Released => {}
                     }
-                    Err(_) => {}
                 }
 
                 thread::sleep(Duration::from_millis(100));
@@ -231,10 +252,12 @@ impl ScreenGrabber {
         if let Ok(signal) = self.hotkey_channel.receiver.try_recv() {
             println!("Signal received!");
             match signal {
-                SlaveSignal::KeyPressed(id) => {
-                    println!("Key pressed with id = {}", id);
-                    // self.execute_action(id)
-
+                SlaveSignal::KeyPressed(action) => {
+                    match action {
+                        HotKeyAction::Capture => { self.capture() }
+                        HotKeyAction::None => {}
+                        _ => {}
+                    }
                 }
                 SlaveSignal::KeyReleased(id) => {
                     println!("Key released with id = {}", id)
@@ -338,20 +361,30 @@ impl ScreenGrabber {
         Ok(())
     }
 
-    pub fn set_hotkey(&self, hotkey_str: String){
-        let _ = self
-            .hotkey_channel
-            .sender
-            .send(MasterSignal::SetHotkey(hotkey_str));
-    }
+    // pub fn set_hotkey(&self, hotkey_str: String){
+    //     let _ = self
+    //         .hotkey_channel
+    //         .sender
+    //         .send(MasterSignal::SetHotkey(hotkey_str));
+    // }
 
     pub fn manage_in_app_hotkeys(&mut self, ctx: &Context) {
-        for s in self.config.in_app_hotkeys.iter(){
+        // if let Ok(mut guard) = self.config.hotkeys.write(){
+        //     for h in guard.iter_mut(){
+        //         if ctx.input_mut(|i| h.shortcut.pressed(i)) {
+        //
+        //         }
+        //     }
+        // }
+        // self.save_as();
+        for index in 0..self.config.in_app_hotkeys.len() {
+            let s = &self.config.in_app_hotkeys[index];
             if ctx.input_mut(|i| s.shortcut.pressed(i)) {
                 match s.action {
                     HotKeyAction::Save => {
-                        println!("Save")
-                    },
+                        println!("Save");
+                        self.save_as()
+                    }
                     HotKeyAction::Reset => {
                         println!("Reset")
                     }
@@ -404,6 +437,6 @@ fn set_font_style(ctx: &Context) {
         (TextStyle::Button, FontId::new(16.0, Proportional)),
         (TextStyle::Small, FontId::new(16.0, Proportional)),
     ]
-    .into();
+        .into();
     ctx.set_style(style);
 }

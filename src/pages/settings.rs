@@ -5,6 +5,7 @@ use egui::panel::{Side, TopBottomSide};
 use egui::{Align, Color32, FontId, Layout, ScrollArea};
 use egui_keybind::{Bind, Keybind};
 use egui_modal::Modal;
+use crate::types::sync::MasterSignal;
 
 pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // _frame.set_decorations(true);
@@ -71,7 +72,6 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                 println!("Global Rebinded!");
                             }
                         }
-                        drop(guard);
                         
                         //In App Bindings
                         ui.add_space(100.0);
@@ -172,6 +172,7 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                         Status::ToSave => {
                             app.prev_config.clone_from(&app.config);
                             app.store_config().unwrap_or_default();
+                            let _ = app.hotkey_channel.sender.send(MasterSignal::SetHotkey());
                             app.set_page(PageType::Launcher)
                         }
                         _ => {}
