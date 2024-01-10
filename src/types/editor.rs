@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
 
 use eframe::emath::{Rect, RectTransform};
@@ -26,6 +27,12 @@ pub enum Mode {
     Redo,
     Undo,
 }
+#[derive(Clone, Copy, PartialEq)]
+pub enum FillType {
+    Primary,
+    Secondary,
+    None,
+}
 
 pub struct Editor {
     pub captured_image: Arc<Mutex<Option<ColorImage>>>,
@@ -39,7 +46,8 @@ pub struct Editor {
     pub current_width: f32,
     pub current_fill_color: Color32,
     pub current_font_size: f32,
-    pub fill_color_enabled: bool,
+    pub width_range: RangeInclusive<f32>,
+    pub fill_type: FillType,
 }
 
 impl Default for Editor {
@@ -54,14 +62,23 @@ impl Default for Editor {
             undone_annotations: Vec::new(),
             current_color: Color32::RED,
             current_width: 7.5,
-            current_fill_color: Color32::RED,
+            current_fill_color: Color32::BLUE,
             current_font_size: 16.0,
-            fill_color_enabled: false,
+            fill_type: FillType::None,
+            width_range: Editor::default_width_range(),
         }
     }
 }
 
 impl Editor {
+    #[inline]
+    fn default_width_range() -> RangeInclusive<f32> {
+        0.5..=10.0
+    }
+    #[inline]
+    fn default_width_range_highlighter() -> RangeInclusive<f32> {
+        10.0..=50.0
+    }
     pub fn manage(&mut self, ui: &mut Ui) {
         let image_ratio = self.texture.as_ref().unwrap().aspect_ratio();
         let space_ratio = ui.max_rect().aspect_ratio();
@@ -84,6 +101,14 @@ impl Editor {
         self.manage_render(ui.painter(), to_screen);
     }
     pub fn manage_input(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        if self.mode != Mode::Highlight
+            && self.width_range == Editor::default_width_range_highlighter()
+        {
+            self.width_range = Editor::default_width_range();
+            if !self.width_range.contains(&self.current_width) {
+                self.current_width = *self.width_range.end();
+            }
+        }
         match self.mode {
             Mode::Crop => self.manage_crop(ui, to_original),
             Mode::DrawArrow => self.manage_arrow(ui, to_original),
@@ -92,7 +117,7 @@ impl Editor {
             Mode::DrawLine => self.manage_segment(ui, to_original),
             Mode::DrawRect => self.manage_rect(ui, to_original),
             Mode::Erase => self.manage_eraser(ui, to_original),
-            Mode::Highlight => {}
+            Mode::Highlight => self.manage_highlighter(ui, to_original),
             Mode::Idle => {}
             Mode::InsertText => self.manage_text(ui, to_original),
             Mode::Redo => {}
@@ -282,9 +307,10 @@ impl Editor {
         let Some(input) = input_res.interact_pointer_pos() else {
             return;
         };
-        let fill = match self.fill_color_enabled {
-            true => self.current_fill_color,
-            false => Color32::TRANSPARENT,
+        let fill = match self.fill_type {
+            FillType::Primary => self.current_color,
+            FillType::Secondary => self.current_fill_color,
+            FillType::None => Color32::TRANSPARENT,
         };
         let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started_by(PointerButton::Primary) {
@@ -317,9 +343,10 @@ impl Editor {
 
         let pos = to_original.transform_pos_clamped(input);
         if input_res.drag_started_by(PointerButton::Primary) {
-            let fill = match self.fill_color_enabled {
-                true => self.current_fill_color,
-                false => Color32::TRANSPARENT,
+            let fill = match self.fill_type {
+                FillType::Primary => self.current_color,
+                FillType::Secondary => self.current_fill_color,
+                FillType::None => Color32::TRANSPARENT,
             };
             self.current_annotation = Some(Annotation::rect(
                 pos,
@@ -391,6 +418,37 @@ impl Editor {
             p.update_points(pos);
             if input_res.drag_released_by(PointerButton::Primary) {
                 if p.points.len() > 1 {
+                    self.add_annotation(self.current_annotation.clone().unwrap());
+                } else {
+                    self.current_annotation = None;
+                }
+            }
+        }
+    }
+
+    fn manage_highlighter(&mut self, ui: &mut Ui, to_original: RectTransform) {
+        if self.width_range != Editor::default_width_range_highlighter() {
+            self.width_range = Editor::default_width_range_highlighter();
+        }
+        let input_res = ui.interact(*to_original.from(), ui.id(), Sense::click_and_drag());
+        let Some(input) = input_res.interact_pointer_pos() else {
+            return;
+        };
+
+        let pos = to_original.transform_pos_clamped(input);
+        if input_res.drag_started_by(PointerButton::Primary) {
+            self.current_annotation = Some(Annotation::highlighter(
+                pos,
+                self.current_color,
+                self.current_width + 10.0,
+            ));
+            return;
+        }
+
+        if let Some(Annotation::Highlighter(ref mut h)) = self.current_annotation.as_mut() {
+            h.update_points(pos);
+            if input_res.drag_released_by(PointerButton::Primary) {
+                if h.points.len() > 1 {
                     self.add_annotation(self.current_annotation.clone().unwrap());
                 } else {
                     self.current_annotation = None;
@@ -555,32 +613,40 @@ impl Editor {
             self.tool_button(ui, &UNDO, Mode::Undo);
             self.tool_button(ui, &REDO, Mode::Redo);
         }
-        ui.shrink_width_to_current();
-        Editor::make_stroke_ui(ui, &mut self.current_width, &mut self.current_color);
     }
     pub fn show_fill_dropdown(&mut self, ui: &mut Ui) {
         let enabled_stoke = ui.visuals().widgets.hovered.fg_stroke;
-        let mut fill = egui::Button::new("Color");
+        let mut primary = egui::Button::new("Primary Color");
+        let mut secondary = egui::Button::new("Secondary Color");
         let mut none = egui::Button::new("None");
 
-        if self.fill_color_enabled {
-            fill = fill.stroke(enabled_stoke);
-        } else {
-            none = none.stroke(enabled_stoke);
+        match self.fill_type {
+            FillType::Primary => {
+                primary = primary.stroke(enabled_stoke);
+            }
+            FillType::Secondary => {
+                secondary = secondary.stroke(enabled_stoke);
+            }
+            FillType::None => {
+                none = none.stroke(enabled_stoke);
+            }
         }
 
         ui.menu_button("Fill mode", |ui| {
-            if fill.ui(ui).clicked() {
-                self.fill_color_enabled = true;
+            if primary.ui(ui).clicked() {
+                self.fill_type = FillType::Primary;
+            };
+            if secondary.ui(ui).clicked() {
+                self.fill_type = FillType::Secondary;
             };
             if none.ui(ui).clicked() {
-                self.fill_color_enabled = false;
+                self.fill_type = FillType::None;
             }
         });
     }
 
     pub fn show_fill_color_picker(&mut self, ui: &mut Ui) {
-        ui.add_enabled(self.fill_color_enabled, |ui: &mut Ui| {
+        ui.add_enabled(self.fill_type == FillType::Secondary, |ui: &mut Ui| {
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.current_fill_color,
@@ -590,14 +656,14 @@ impl Editor {
         .on_hover_text("Fill")
         .on_disabled_hover_text("Fill (disabled)");
     }
-    pub fn make_stroke_ui(ui: &mut Ui, width: &mut f32, color: &mut Color32) {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=100.0))
-            .on_hover_text("Width");
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
-        egui::color_picker::color_edit_button_srgba(ui, color, Alpha::OnlyBlend)
+    pub fn show_color_picker(&mut self, ui: &mut Ui) {
+        ui.add(
+            DragValue::new(&mut self.current_width)
+                .speed(0.1)
+                .clamp_range(self.width_range.clone()),
+        )
+        .on_hover_text("Width");
+        egui::color_picker::color_edit_button_srgba(ui, &mut self.current_color, Alpha::OnlyBlend)
             .on_hover_text("Stroke");
         ui.add_space(ui.spacing().item_spacing.y);
     }

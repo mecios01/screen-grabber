@@ -1,7 +1,9 @@
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use arboard::Clipboard;
 use crossbeam::channel::{TryRecvError};
 use egui::{ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2, ViewportCommand};
 use egui_keybind::Bind;
@@ -16,6 +18,7 @@ use crate::pages::types::{HotKeyAction, PageType, SettingType};
 use crate::types::config::Config;
 use crate::types::editor::Editor;
 use crate::types::rasterizer::Rasterizer;
+use crate::types::save_destination::SaveDestination;
 use crate::types::sync::{DoubleChannel, MasterSignal, SaveImageData, SlaveSignal};
 use crate::types::utils::{export_color_image_to_skia_image, new_hotkey_from_str, save_dialog};
 
@@ -24,6 +27,8 @@ pub const APP_KEY: &str = "screen-grabber";
 #[derive(Deserialize, Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct ScreenGrabber {
+    #[serde(skip)]
+    pub clipboard: Arc<Mutex<Clipboard>>,
     //it should be an entire config loaded at start of the app
     #[serde(skip)]
     current_page: PageType,
@@ -55,6 +60,7 @@ pub struct ScreenGrabber {
 impl Default for ScreenGrabber {
     fn default() -> Self {
         Self {
+            clipboard: Arc::new(Mutex::new(Clipboard::new().unwrap())),
             current_page: PageType::Launcher,
             is_minimized: false,
             is_saving: false,
@@ -183,11 +189,11 @@ impl ScreenGrabber {
                                 Rasterizer::new(save_data.canvas_size, save_data.crop_area);
                             rasterizer.add_screenshot(image.as_ref().unwrap(), (0, 0));
                             rasterizer.add_annotations(save_data.annotations.as_ref());
-                            match rasterizer.export(&save_data.path) {
-                                Some(_) => Some(()),
-                                None => None,
+                            let signal = match rasterizer.export(save_data.path) {
+                                Some(_) => SlaveSignal::SaveDone,
+                                None => SlaveSignal::Aborted,
                             };
-                            let _ = channel.sender.send(SlaveSignal::SaveDone);
+                            let _ = channel.sender.send(signal);
                         }
                         MasterSignal::Shutdown => {
                             break 'outer;
@@ -231,7 +237,7 @@ impl ScreenGrabber {
                         self.is_capturing = false;
                     }
                     SlaveSignal::Aborted => {
-                        println!("Save Done or aborted");
+                        println!("Save aborted");
                         self.is_capturing = false;
                         self.is_saving = false;
                     }
@@ -316,15 +322,7 @@ impl ScreenGrabber {
         self.is_capturing = true;
     }
 
-    pub fn save_as(&mut self) {
-        if !self.has_captured_image() {
-            return;
-        }
-        let path = save_dialog();
-        if path.is_none() {
-            return;
-        }
-
+    fn _save(&mut self, path: SaveDestination) {
         let guard = self.editor.captured_image.lock().unwrap();
         let size = guard
             .as_ref()
@@ -332,14 +330,13 @@ impl ScreenGrabber {
             .size
             .clone();
         drop(guard);
-
         let annotations = self.editor.annotations.clone();
         let canvas_size = (size[0] as u32, size[1] as u32);
         let crop_size = (self.editor.crop_rect.min, self.editor.crop_rect.max);
 
         let image_data = SaveImageData::new(
             self.editor.captured_image.clone(),
-            path.unwrap(),
+            path,
             crop_size,
             canvas_size,
             annotations,
@@ -349,6 +346,22 @@ impl ScreenGrabber {
             .sender
             .send(MasterSignal::SaveImage(image_data));
         self.is_saving = true;
+    }
+    pub fn save_as(&mut self) {
+        if !self.has_captured_image() {
+            return;
+        }
+        let path = save_dialog();
+        if path.is_none() {
+            return;
+        }
+        self._save(SaveDestination::RealPath(path.unwrap()));
+    }
+    pub fn save_clipboard(&mut self) {
+        if !self.has_captured_image() {
+            return;
+        }
+        self._save(SaveDestination::Clipboard(self.clipboard.clone()));
     }
     ///settings (to understand if this is the right place for setters of settings)
     pub fn set_active_section(&mut self, session: SettingType) {
