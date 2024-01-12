@@ -2,8 +2,10 @@ use std::io::Cursor;
 use std::path::PathBuf;
 
 use chrono::Utc;
-use egui::{ColorImage, IconData};
+use egui::{ColorImage, IconData, Visuals};
+use global_hotkey::hotkey::HotKey;
 use image::{GenericImageView, ImageOutputFormat, RgbaImage};
+use rand::{random};
 use skia_safe::{Data, Image};
 
 pub fn export_color_image_to_skia_image(ci: &ColorImage) -> Option<Image> {
@@ -59,4 +61,14 @@ pub fn load_icon(path: &str) -> Result<IconData, String> {
         height,
     };
     Ok(icon)
+}
+
+pub fn new_hotkey_from_str(str: &str) -> u32 {
+    if !str.is_empty() { HotKey::try_from(str).unwrap().id() } else { random::<u32>() }
+}
+
+pub fn set_theme(is_dark: bool) -> Visuals {
+    if is_dark {
+        Visuals::dark()
+    } else { Visuals::light() }
 }

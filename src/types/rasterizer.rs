@@ -201,7 +201,7 @@ impl Rasterizer {
                     });
                     return match result {
                         Ok(_) => Some(()),
-                        Err(e) => None,
+                        Err(_e) => None,
                     };
                 }
             }

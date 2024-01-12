@@ -1,8 +1,9 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use egui::{ColorImage, Pos2};
+use crate::types::keybinds::{Binding, HotKeyAction};
 
 use crate::types::annotation::Annotation;
 use crate::types::save_destination::SaveDestination;
@@ -12,7 +13,7 @@ pub enum MasterSignal {
     ///asks the thread to capture the screenshot after Duration
     StartCaptureAfter(Duration),
     ///setup the hotkeys or renew them after changes
-    SetHotkeys(Arc<RwLock<u32>>),
+    SetHotkey(Vec<Binding>),
     ///asks the thread to export and save the image into the path
     SaveImage(SaveImageData),
     ///makes the thread exit the main loop then terminate (so we can join it before exiting)
@@ -23,7 +24,7 @@ pub enum MasterSignal {
 pub enum SlaveSignal {
     CaptureDone(ColorImage),
     SaveDone,
-    KeyPressed(u32),
+    KeyPressed(HotKeyAction),
     KeyReleased(u32),
     Aborted,
 }

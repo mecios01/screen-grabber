@@ -6,22 +6,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = { version = "0.24.0", features = ["persistence", "wgpu"] }
-egui = "0.24.0"
-egui_extras = { version = "0.24.0", features = ["all_loaders"] }
-egui-modal = "0.3.0"
+eframe = { version = "0.25.0", features = ["persistence", "wgpu"] }
+egui = "0.25.0"
+egui_extras = { version = "0.25.0", features = ["all_loaders"] }
+egui-modal = "0.3.2"
 lazy_static = "1.4.0"
-screenshots = "0.8.5"
-serde = { version = "1.0.190", features = ["derive"] }
-confy = { version = "0.5.1", features = ["yaml_conf"], default-features = false }
+screenshots = "0.8.6"
+serde = { version = "1.0.195", features = ["derive"] }
+confy = { version = "0.6.0", features = ["yaml_conf"], default-features = false }
 global-hotkey = "0.4.1"
 keyboard-types = "0.7.0"
 skia-safe = { version = "0.69.0", features = ["textlayout"] }
 image = "0.24.7"
 chrono = "0.4.31"
 rfd = { version = "0.12.1", default-features = false, features = ["xdg-portal"] }
-crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
+crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
+egui-keybind = {version = "0.2.5", features = ["serde"]}
 arboard = "3.3.0"
+rand = "0.8.5"
+#egui-bind = "0.10.0"
+#rdev = { version = "0.5.3", features = ["unstable_grab"] }
 
 [profile.release]
 strip = true
