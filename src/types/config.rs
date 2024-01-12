@@ -1,16 +1,15 @@
-use std::ops::Deref;
-use std::sync::{Arc, RwLock};
 use egui::{Key, Modifiers};
 use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
-use crate::pages::types::{Binding, HotKeyAction};
+use crate::types::keybinds::{Binding, HotKeyAction};
 use crate::types::utils::new_hotkey_from_str;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum Status {
     #[default]
     Normal,
-    ToCancel,
+    ToGoBack,
+    ToDiscard,
     ToReset,
     ToSave,
 }
@@ -23,10 +22,10 @@ pub struct Config {
     pub start_minimized: bool,
     example_text: String,
     //keybindings
-    pub hotkeys: Arc<RwLock<Vec<Binding>>>,
+    pub hotkeys: Vec<Binding>,
     pub in_app_hotkeys: Vec<Binding>,
     //appearance
-    // theme: Visuals,
+    pub is_dark: bool
 }
 
 /// `MyConfig` implements `Default`
@@ -38,18 +37,18 @@ impl Default for Config {
             start_minimized: false,
             example_text: "".into(),
             //keybindings
-            hotkeys: Arc::new(RwLock::new(vec![
-                Binding { id: new_hotkey_from_str("Ctrl+C".to_string()), key_bind: String::from("Ctrl+C"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::CTRL, Key::C)), None), action: HotKeyAction::Capture },
-                Binding { id: new_hotkey_from_str("Ctrl+Shift+E".to_string()), key_bind: String::from("Ctrl+Shift+E"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, Key::E)), None), action: HotKeyAction::None }
-
-            ])),
+            hotkeys: vec![
+                Binding { id: new_hotkey_from_str("Alt+C"), key_bind: String::from("Alt+C"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT, Key::C)), None), action: HotKeyAction::Capture },
+            ],
             in_app_hotkeys: vec![
-                Binding { id: 1, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::Save },
-                Binding { id: 2, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::Reset },
-                Binding { id: 3, key_bind: String::new(), shortcut: Shortcut::default(), action: HotKeyAction::None },
+                Binding { id: new_hotkey_from_str("Alt+E"), key_bind: String::from("Alt+E"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT, Key::E)), None), action: HotKeyAction::Editor },
+                Binding { id: new_hotkey_from_str("Alt+Shift+C"), key_bind: String::from("Alt+Shift+C"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT | Modifiers::SHIFT, Key::C)), None), action: HotKeyAction::Clipboard },
+                Binding { id: new_hotkey_from_str("Alt+S"), key_bind: String::from("Alt+S"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT, Key::S)), None), action: HotKeyAction::Save },
+                Binding { id: new_hotkey_from_str("Alt+I"), key_bind: String::from("Alt+I"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT, Key::I)), None), action: HotKeyAction::Settings },
+                Binding { id: new_hotkey_from_str("Alt+R"), key_bind: String::from("Alt+R"), shortcut: Shortcut::new(Some(egui::KeyboardShortcut::new(Modifiers::ALT, Key::R)), None), action: HotKeyAction::Reset },
             ],
             //appearance
-            // theme: Visuals::dark(),
+            is_dark: true
         }
     }
 }
@@ -59,7 +58,8 @@ impl PartialEq for Config {
         self.start_minimized == other.start_minimized &&
             self.example_text == other.example_text &&
             self.in_app_hotkeys == other.in_app_hotkeys &&
-            self.hotkeys.read().unwrap().deref().eq(other.hotkeys.read().unwrap().deref())
+            self.hotkeys == other.hotkeys &&
+            self.is_dark == other.is_dark
     }
 }
 

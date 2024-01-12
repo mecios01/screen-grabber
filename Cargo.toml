@@ -13,7 +13,7 @@ egui-modal = "0.3.2"
 lazy_static = "1.4.0"
 screenshots = "0.8.6"
 serde = { version = "1.0.195", features = ["derive"] }
-confy = { version = "0.5.1", features = ["yaml_conf"], default-features = false }
+confy = { version = "0.6.0", features = ["yaml_conf"], default-features = false }
 global-hotkey = "0.4.1"
 keyboard-types = "0.7.0"
 skia-safe = { version = "0.69.0", features = ["textlayout"] }
@@ -22,6 +22,8 @@ chrono = "0.4.31"
 rfd = { version = "0.12.1", default-features = false, features = ["xdg-portal"] }
 crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 egui-keybind = {version = "0.2.5", features = ["serde"]}
+arboard = "3.3.0"
+rand = "0.8.5"
 #egui-bind = "0.10.0"
 #rdev = { version = "0.5.3", features = ["unstable_grab"] }
 

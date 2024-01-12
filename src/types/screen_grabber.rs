@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use arboard::Clipboard;
 use crossbeam::channel::{TryRecvError};
-use egui::{ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2, ViewportCommand};
+use egui::{ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2, ViewportCommand, Visuals};
 use egui_keybind::Bind;
 use global_hotkey::hotkey::HotKey;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager};
@@ -14,9 +14,10 @@ use serde::{Deserialize, Serialize};
 use crate::pages::capture::capture_page;
 use crate::pages::launcher::launcher_page;
 use crate::pages::settings::settings_page;
-use crate::pages::types::{HotKeyAction, PageType, SettingType};
-use crate::types::config::Config;
+use crate::pages::types::{PageType, SettingType};
+use crate::types::config::{Config, Status};
 use crate::types::editor::Editor;
+use crate::types::keybinds::HotKeyAction;
 use crate::types::rasterizer::Rasterizer;
 use crate::types::save_destination::SaveDestination;
 use crate::types::sync::{DoubleChannel, MasterSignal, SaveImageData, SlaveSignal};
@@ -48,6 +49,8 @@ pub struct ScreenGrabber {
     pub config: Config,
     #[serde(skip)]
     pub prev_config: Config,
+    #[serde(skip)]
+    pub is_binding: bool,
     //sync stuff
     #[serde(skip)]
     pub hotkey_channel: DoubleChannel<MasterSignal, SlaveSignal>,
@@ -71,6 +74,7 @@ impl Default for ScreenGrabber {
             active_section: SettingType::General,
             config: Config::load_or_default(),
             prev_config: Config::load_or_default(),
+            is_binding: false,
             hotkey_channel: DoubleChannel::new(),
             save_channel: DoubleChannel::new(),
             thread_handles: vec![],
@@ -92,15 +96,11 @@ impl ScreenGrabber {
         &mut self,
         channel: DoubleChannel<SlaveSignal, MasterSignal>,
     ) -> JoinHandle<()> {
-        //TODO
-        let hotkeys = self.config.hotkeys.clone();
+        let mut hotkeys = self.config.hotkeys.clone();
         thread::spawn(move || {
             println!("HOTKEYS THREAD ON");
-
             let manager = GlobalHotKeyManager::new().unwrap();
             let mut hks: Vec<HotKey> = hotkeys
-                .read()
-                .unwrap()
                 .iter()
                 .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap()).collect();
             manager.register_all(&hks).unwrap();
@@ -111,23 +111,20 @@ impl ScreenGrabber {
             'outer: loop {
                 match channel.receiver.try_recv() {
                     Ok(signal) => match signal {
-                        MasterSignal::SetHotkey() => {
+                        MasterSignal::SetHotkey(hotks) => {
                             //register all new hotkeys
-                            if let Ok(guard) = hotkeys.read() {
-                                manager.unregister_all(&hks).unwrap();
-                                hks = guard
-                                    .iter()
-                                    .map(|kb|
-                                        HotKey::try_from(kb.key_bind.as_str()).unwrap()
-                                    ).collect();
-                                manager.register_all(&hks).unwrap();
+                            manager.unregister_all(&hks).unwrap();
+                            hotkeys = hotks;
+                            for h in hotkeys.iter_mut() {
+                                h.id = new_hotkey_from_str(&h.key_bind);
                             }
+                            hks = hotkeys
+                                .iter()
+                                .map(|kb|
+                                    HotKey::try_from(kb.key_bind.as_str()).unwrap()
+                                ).collect();
+                            manager.register_all(&hks).unwrap();
                             //updating hotkey ids
-                            if let Ok(mut guard) = hotkeys.write(){
-                                for h in guard.iter_mut(){
-                                    h.id = new_hotkey_from_str(h.key_bind.clone())
-                                }
-                            }
                         }
                         MasterSignal::Shutdown => break 'outer,
                         _ => {}
@@ -136,21 +133,16 @@ impl ScreenGrabber {
                     _ => {}
                 }
                 if let Ok(event) = receiver.try_recv() {
-                    match event.state {
-                        global_hotkey::HotKeyState::Pressed => {
-                            // println!("global ciao ciao");
-                            let mut action = HotKeyAction::None;
-                            if let Ok(guard) = hotkeys.read() {
-                                action = guard.iter().find(|h| h.id == event.id).unwrap().action.clone();
-                            }
-                            let _ = channel
-                                .sender
-                                .send(SlaveSignal::KeyPressed(action));
+                    if event.state == global_hotkey::HotKeyState::Pressed {
+                        let mut action = HotKeyAction::None;
+                        if let Some(hotkey) = hotkeys.iter().find(|h| h.id == event.id) {
+                            action = hotkey.action.clone();
                         }
-                        global_hotkey::HotKeyState::Released => {}
+                        let _ = channel
+                            .sender
+                            .send(SlaveSignal::KeyPressed(action));
                     }
                 }
-
                 thread::sleep(Duration::from_millis(100));
             }
             println!("HOTKEYS THREAD DEAD");
@@ -254,14 +246,13 @@ impl ScreenGrabber {
                 }
             }
         };
-        //TODO
         if let Ok(signal) = self.hotkey_channel.receiver.try_recv() {
             println!("Signal received!");
             match signal {
                 SlaveSignal::KeyPressed(action) => {
                     match action {
                         HotKeyAction::Capture => { self.capture() }
-                        HotKeyAction::None => {}
+                        HotKeyAction::None => { println!("Hotkey does not exists!") }
                         _ => {}
                     }
                 }
@@ -281,11 +272,16 @@ impl ScreenGrabber {
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         let config = Config::load_or_default();
+        if config.is_dark {
+            cc.egui_ctx.set_visuals(Visuals::dark())
+        } else { cc.egui_ctx.set_visuals(Visuals::light()) }
         cc.egui_ctx.send_viewport_cmd(ViewportCommand::Minimized(config.start_minimized));
+        // cc.egui_ctx.set_visuals(Visuals::light());
         set_font_style(&cc.egui_ctx);
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, APP_KEY).unwrap_or_default();
         }
+
         Default::default()
     }
     pub fn set_page(&mut self, page: PageType) {
@@ -373,33 +369,35 @@ impl ScreenGrabber {
         confy::store("screen-grabber", "config", &self.config)?;
         Ok(())
     }
-
-    // pub fn set_hotkey(&self, hotkey_str: String){
-    //     let _ = self
-    //         .hotkey_channel
-    //         .sender
-    //         .send(MasterSignal::SetHotkey(hotkey_str));
-    // }
-
     pub fn manage_in_app_hotkeys(&mut self, ctx: &Context) {
-        // if let Ok(mut guard) = self.config.hotkeys.write(){
-        //     for h in guard.iter_mut(){
-        //         if ctx.input_mut(|i| h.shortcut.pressed(i)) {
-        //
-        //         }
-        //     }
-        // }
-        // self.save_as();
         for index in 0..self.config.in_app_hotkeys.len() {
             let s = &self.config.in_app_hotkeys[index];
             if ctx.input_mut(|i| s.shortcut.pressed(i)) {
                 match s.action {
+                    HotKeyAction::Editor => {
+                        if self.has_captured_image() {
+                            self.set_page(PageType::Capture)
+                        }
+                    }
+                    HotKeyAction::Clipboard => {
+                        if self.has_captured_image() {
+                            self.save_clipboard()
+                        }
+                    }
                     HotKeyAction::Save => {
-                        println!("Save");
-                        self.save_as()
+                        if self.has_captured_image() {
+                            self.save_as()
+                        }
+                    }
+                    HotKeyAction::Settings => {
+                        self.set_page(PageType::Settings)
                     }
                     HotKeyAction::Reset => {
-                        println!("Reset")
+                        if let PageType::Settings = self.current_page {
+                            if !self.prev_config.eq(&Config::default()) {
+                                self.config.status = Status::ToReset;
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -410,10 +408,11 @@ impl ScreenGrabber {
 
 impl eframe::App for ScreenGrabber {
     fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+        self.config.is_dark = ctx.style().visuals.dark_mode;
         self.check_signals(ctx);
         self.manage_window_status(ctx);
         ctx.request_repaint();
-        self.manage_in_app_hotkeys(ctx);
+        if !self.is_binding { self.manage_in_app_hotkeys(ctx) };
         match self.current_page {
             PageType::Launcher => launcher_page(self, ctx, frame),
             PageType::Capture => capture_page(self, ctx, frame),

@@ -1,5 +1,5 @@
-use egui::panel::Side;
-use egui::Widget;
+use egui::panel::{Side, TopBottomSide};
+use egui::{Align, Layout, Widget};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
@@ -40,6 +40,21 @@ pub fn launcher_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                         .ui(ui)
                         .on_hover_text("Capture delay");
                 });
+                ui.add_space(20.0);
+
+                egui::TopBottomPanel::new(TopBottomSide::Bottom, "helper")
+                    .show_inside(ui, |ui| {
+                        egui::Grid::new("helper").min_col_width(ui.available_size().x/2.0)
+                            .show(ui, |ui|{
+                                for h in app.config.hotkeys.iter().chain(app.config.in_app_hotkeys.iter()){
+                                    ui.label(h.action.to_string());
+                                    ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
+                                        ui.label(&h.key_bind);
+                                    });
+                                    ui.end_row()
+                                }
+                            });
+                    });
             });
         });
     });

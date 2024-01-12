@@ -9,3 +9,4 @@ pub mod rasterizer;
 pub mod save_destination;
 pub mod sync;
 pub mod utils;
+mod keybinds;
