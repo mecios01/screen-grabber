@@ -562,6 +562,21 @@ impl Editor {
             .fit_to_exact_size(size_points);
         image.paint_at(ui, rect);
 
+        response.clone().on_hover_text(match mode {
+            Mode::Crop => "Crop",
+            Mode::DrawArrow => "Arrow",
+            Mode::DrawCircle => "Circle",
+            Mode::DrawFree => "Pencil",
+            Mode::DrawLine => "Line",
+            Mode::DrawRect => "Rectangle",
+            Mode::Erase => "Erase annotation",
+            Mode::Highlight => "Highlighter",
+            Mode::Idle => "Cursor",
+            Mode::InsertText => "Text",
+            Mode::Redo => "Redo",
+            Mode::Undo => "Undo",
+        });
+
         if response.clicked() {
             match mode {
                 Mode::Undo => self.undo(ui),
@@ -578,6 +593,7 @@ impl Editor {
         }
         response
     }
+
     pub fn show_tool_buttons(&mut self, ui: &mut Ui) {
         //dark mode
         if ui.visuals().dark_mode {
