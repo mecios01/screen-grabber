@@ -1,10 +1,12 @@
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
+use crate::types::utils::set_min_inner_size;
 
 pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     if !app.has_captured_image() {
         app.set_page(PageType::Launcher)
     }
+    set_min_inner_size(ctx);
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.horizontal(|ui| {
             if ui.button("Launcher").clicked() {
@@ -15,6 +17,12 @@ pub fn capture_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut e
                 .clicked()
             {
                 app.save_as();
+            }
+            if ui
+                .add_enabled(!app.is_saving, egui::Button::new("Save default"))
+                .clicked()
+            {
+                app.save_default();
             }
             if ui
                 .add_enabled(!app.is_saving, egui::Button::new("Copy to clipboard"))

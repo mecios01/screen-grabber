@@ -1,11 +1,15 @@
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use arboard::Clipboard;
-use crossbeam::channel::{TryRecvError};
-use egui::{ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions, Vec2, ViewportCommand, Visuals};
+use crossbeam::channel::TryRecvError;
+use egui::{
+    ColorImage, Context, FontFamily, FontId, Pos2, Rect, TextStyle, TextureHandle, TextureOptions,
+    Vec2, ViewportCommand, Visuals,
+};
 use egui_keybind::Bind;
 use global_hotkey::hotkey::HotKey;
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager};
@@ -21,7 +25,9 @@ use crate::types::keybinds::HotKeyAction;
 use crate::types::rasterizer::Rasterizer;
 use crate::types::save_destination::SaveDestination;
 use crate::types::sync::{DoubleChannel, MasterSignal, SaveImageData, SlaveSignal};
-use crate::types::utils::{export_color_image_to_skia_image, new_hotkey_from_str, save_dialog};
+use crate::types::utils::{
+    export_color_image_to_skia_image, new_hotkey_from_str, set_min_inner_size,
+};
 
 pub const APP_KEY: &str = "screen-grabber";
 
@@ -102,7 +108,8 @@ impl ScreenGrabber {
             let manager = GlobalHotKeyManager::new().unwrap();
             let mut hks: Vec<HotKey> = hotkeys
                 .iter()
-                .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap()).collect();
+                .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap())
+                .collect();
             manager.register_all(&hks).unwrap();
 
             let receiver = GlobalHotKeyEvent::receiver();
@@ -120,9 +127,8 @@ impl ScreenGrabber {
                             }
                             hks = hotkeys
                                 .iter()
-                                .map(|kb|
-                                    HotKey::try_from(kb.key_bind.as_str()).unwrap()
-                                ).collect();
+                                .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap())
+                                .collect();
                             manager.register_all(&hks).unwrap();
                             //updating hotkey ids
                         }
@@ -138,9 +144,7 @@ impl ScreenGrabber {
                         if let Some(hotkey) = hotkeys.iter().find(|h| h.id == event.id) {
                             action = hotkey.action.clone();
                         }
-                        let _ = channel
-                            .sender
-                            .send(SlaveSignal::KeyPressed(action));
+                        let _ = channel.sender.send(SlaveSignal::KeyPressed(action));
                     }
                 }
                 thread::sleep(Duration::from_millis(100));
@@ -227,6 +231,8 @@ impl ScreenGrabber {
                         let mut guard = self.editor.captured_image.lock().unwrap();
                         *guard = Some(c);
                         self.is_capturing = false;
+                        self.current_page = PageType::Capture;
+                        set_min_inner_size(ctx);
                     }
                     SlaveSignal::Aborted => {
                         println!("Save aborted");
@@ -249,13 +255,13 @@ impl ScreenGrabber {
         if let Ok(signal) = self.hotkey_channel.receiver.try_recv() {
             println!("Signal received!");
             match signal {
-                SlaveSignal::KeyPressed(action) => {
-                    match action {
-                        HotKeyAction::Capture => { self.capture() }
-                        HotKeyAction::None => { println!("Hotkey does not exists!") }
-                        _ => {}
+                SlaveSignal::KeyPressed(action) => match action {
+                    HotKeyAction::Capture => self.capture(),
+                    HotKeyAction::None => {
+                        println!("Hotkey does not exists!")
                     }
-                }
+                    _ => {}
+                },
                 SlaveSignal::KeyReleased(id) => {
                     println!("Key released with id = {}", id)
                 }
@@ -274,8 +280,15 @@ impl ScreenGrabber {
         let config = Config::load_or_default();
         if config.is_dark {
             cc.egui_ctx.set_visuals(Visuals::dark())
-        } else { cc.egui_ctx.set_visuals(Visuals::light()) }
-        cc.egui_ctx.send_viewport_cmd(ViewportCommand::Minimized(config.start_minimized));
+        } else {
+            cc.egui_ctx.set_visuals(Visuals::light())
+        }
+        cc.egui_ctx
+            .send_viewport_cmd(ViewportCommand::Minimized(config.start_minimized));
+        cc.egui_ctx.style_mut(|style| {
+            style.spacing.slider_width = 200.0;
+            style.visuals.slider_trailing_fill = true;
+        });
         // cc.egui_ctx.set_visuals(Visuals::light());
         set_font_style(&cc.egui_ctx);
         if let Some(storage) = cc.storage {
@@ -317,7 +330,30 @@ impl ScreenGrabber {
             )));
         self.is_capturing = true;
     }
+    pub fn choose_folder_dialog(&self) -> PathBuf {
+        let dialog = rfd::FileDialog::new().pick_folder();
+        if let Some(d) = dialog {
+            return d;
+        }
+        std::env::current_dir().unwrap_or_default()
+    }
+    pub fn save_dialog(&self) -> Option<PathBuf> {
+        let path = self.config.default_path.clone();
 
+        let mut dialog = rfd::FileDialog::new()
+            .add_filter("png", &["png"])
+            .add_filter("jpg", &["jpg"])
+            .add_filter("gif", &["gif"])
+            .add_filter("bmp", &["bmp"]);
+
+        dialog = dialog.set_file_name(format!("{}", self.config.default_filename.to_string()));
+        let p = path.unwrap_or_default();
+        println!("Default path is {:?}", p);
+        dialog = dialog.set_directory(&p);
+
+        let res = dialog.save_file();
+        res
+    }
     fn _save(&mut self, path: SaveDestination) {
         let guard = self.editor.captured_image.lock().unwrap();
         let size = guard
@@ -343,11 +379,21 @@ impl ScreenGrabber {
             .send(MasterSignal::SaveImage(image_data));
         self.is_saving = true;
     }
+    pub fn save_default(&mut self) {
+        if !self.has_captured_image() {
+            return;
+        }
+        let mut path = self.config.default_path.clone().unwrap_or_default();
+        path.push(self.config.default_filename.to_string());
+        path.set_extension("png");
+        println!("{:?}", path);
+        self._save(SaveDestination::RealPath(path));
+    }
     pub fn save_as(&mut self) {
         if !self.has_captured_image() {
             return;
         }
-        let path = save_dialog();
+        let path = self.save_dialog();
         if path.is_none() {
             return;
         }
@@ -389,9 +435,12 @@ impl ScreenGrabber {
                             self.save_as()
                         }
                     }
-                    HotKeyAction::Settings => {
-                        self.set_page(PageType::Settings)
+                    HotKeyAction::SaveDefault => {
+                        if self.has_captured_image() {
+                            self.save_default()
+                        }
                     }
+                    HotKeyAction::Settings => self.set_page(PageType::Settings),
                     HotKeyAction::Reset => {
                         if let PageType::Settings = self.current_page {
                             if !self.prev_config.eq(&Config::default()) {
@@ -412,7 +461,9 @@ impl eframe::App for ScreenGrabber {
         self.check_signals(ctx);
         self.manage_window_status(ctx);
         ctx.request_repaint();
-        if !self.is_binding { self.manage_in_app_hotkeys(ctx) };
+        if !self.is_binding {
+            self.manage_in_app_hotkeys(ctx)
+        };
         match self.current_page {
             PageType::Launcher => launcher_page(self, ctx, frame),
             PageType::Capture => capture_page(self, ctx, frame),
@@ -449,6 +500,6 @@ fn set_font_style(ctx: &Context) {
         (TextStyle::Button, FontId::new(16.0, Proportional)),
         (TextStyle::Small, FontId::new(16.0, Proportional)),
     ]
-        .into();
+    .into();
     ctx.set_style(style);
 }

@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +9,7 @@ pub enum HotKeyAction {
     Editor,
     Clipboard,
     Save,
+    SaveDefault,
     Settings,
     Reset,
     None,
@@ -18,8 +20,9 @@ impl Display for HotKeyAction {
         match self {
             HotKeyAction::Capture => write!(f, "Capture"),
             HotKeyAction::Editor => write!(f, "Editor"),
-            HotKeyAction::Clipboard=> write!(f, "Clipboard"),
+            HotKeyAction::Clipboard => write!(f, "Clipboard"),
             HotKeyAction::Save => write!(f, "Save"),
+            HotKeyAction::SaveDefault => write!(f, "Save Default"),
             HotKeyAction::Settings => write!(f, "Settings"),
             HotKeyAction::Reset => write!(f, "Reset"),
             HotKeyAction::None => write!(f, "None"),
@@ -30,13 +33,14 @@ impl PartialEq for HotKeyAction {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
-            (HotKeyAction::Capture, HotKeyAction::Capture) |
-            (HotKeyAction::Editor, HotKeyAction::Editor) |
-            (HotKeyAction::Clipboard, HotKeyAction::Clipboard) |
-            (HotKeyAction::Save, HotKeyAction::Save) |
-            (HotKeyAction::Settings, HotKeyAction::Settings) |
-            (HotKeyAction::Reset, HotKeyAction::Reset) |
-            (HotKeyAction::None, HotKeyAction::None)
+            (HotKeyAction::Capture, HotKeyAction::Capture)
+                | (HotKeyAction::Editor, HotKeyAction::Editor)
+                | (HotKeyAction::Clipboard, HotKeyAction::Clipboard)
+                | (HotKeyAction::Save, HotKeyAction::Save)
+                | (HotKeyAction::SaveDefault, HotKeyAction::Save)
+                | (HotKeyAction::Settings, HotKeyAction::Settings)
+                | (HotKeyAction::Reset, HotKeyAction::Reset)
+                | (HotKeyAction::None, HotKeyAction::None)
         )
     }
 }
@@ -62,6 +66,6 @@ impl Default for Binding {
 
 impl PartialEq<Self> for Binding {
     fn eq(&self, other: &Self) -> bool {
-        self.shortcut.eq(&other.shortcut)/* && self.action.eq(&other.action)*/
+        self.shortcut.eq(&other.shortcut) /* && self.action.eq(&other.action)*/
     }
 }

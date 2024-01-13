@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use egui::{ColorImage, Pos2};
-use crate::types::keybinds::{Binding, HotKeyAction};
 
 use crate::types::annotation::Annotation;
+use crate::types::keybinds::{Binding, HotKeyAction};
 use crate::types::save_destination::SaveDestination;
 
 ///Signals send from the main thread to the auxiliary threads

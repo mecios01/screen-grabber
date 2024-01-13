@@ -24,8 +24,7 @@ crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 egui-keybind = {version = "0.2.5", features = ["serde"]}
 arboard = "3.3.0"
 rand = "0.8.5"
-#egui-bind = "0.10.0"
-#rdev = { version = "0.5.3", features = ["unstable_grab"] }
+regex = "1.10.2"
 
 [profile.release]
 strip = true

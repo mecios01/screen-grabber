@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use eframe::emath::{Rect, RectTransform};
 use egui::color_picker::Alpha;
 use egui::{
-    Color32, ColorImage, DragValue, Event, Image, Key, Painter, PointerButton, Pos2,
-    Rounding, Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
+    Color32, ColorImage, DragValue, Event, Image, Key, Painter, PointerButton, Pos2, Rounding,
+    Sense, Shape, Stroke, TextureHandle, TextureOptions, Ui, Vec2, Widget,
 };
 
 use crate::types::annotation::{Annotation, Position};

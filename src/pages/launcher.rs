@@ -1,61 +1,76 @@
-use egui::panel::{Side, TopBottomSide};
-use egui::{Align, Layout, Widget};
+use eframe::epaint::FontId;
+use egui::{Align, Layout, Vec2};
 
 use crate::pages::types::PageType;
 use crate::types::screen_grabber::ScreenGrabber;
+use crate::types::utils::set_max_inner_size;
 
 pub fn launcher_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    let window_size = ctx.screen_rect().width();
-    egui::containers::CentralPanel::default().show(ctx, |_ui| {
-        // egui::TopBottomPanel::new(TopBottomSide::Top, "header").show(ctx, |ui|{
-        //    ui.with_layout(Layout::right_to_left(Align::Max), |ui|{
-        //       //TODO: add top left button for settings
-        //    });
-        // });
-        egui::SidePanel::new(Side::Left, "image_panel")
-            .resizable(false)
-            .exact_width(window_size * 0.7)
-            .show(ctx, |ui| ui.label("image/empty rectangle"));
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let max = ui.max_rect();
-            ui.allocate_ui_at_rect(max, |ui| {
-                ui.label("Launcher page");
-                if ui.button("Capture").clicked() {
-                    app.capture();
-                }
-                if ui
-                    .add_enabled(app.has_captured_image(), egui::Button::new("Edit"))
-                    .clicked()
-                {
-                    app.set_page(PageType::Capture);
-                }
-                if ui.button("Settings").clicked() {
-                    app.set_page(PageType::Settings)
-                }
-                ui.horizontal(|ui| {
-                    egui::Label::new("Delay").ui(ui);
-                    egui::Slider::new(&mut app.capture_delay_s, 0.3..=6.0)
-                        .step_by(0.1)
-                        .custom_formatter(|n, _r| format!("{:.1} s", n))
-                        .ui(ui)
-                        .on_hover_text("Capture delay");
-                });
-                ui.add_space(20.0);
+    set_max_inner_size(ctx);
+    let pad_maxw = ctx.available_rect().width() - 20.0;
+    egui::containers::CentralPanel::default().show(ctx, |ui| {
+        let layout = Layout::top_down(Align::Center).with_cross_align(Align::Center);
+        ui.label(egui::RichText::new("Launcher").font(FontId::proportional(30.0)));
+        ui.with_layout(layout, |ui| {
+            ui.add_space(40.0);
+            egui::Grid::new("buttons_grid")
+                .spacing((0.0, 6.0))
+                .num_columns(1)
+                .show(ui, |ui| {
+                    let ms = Vec2::new(pad_maxw, 40.0);
+                    if ui.add(egui::Button::new("Capture").min_size(ms)).clicked() {
+                        app.capture();
+                    }
+                    ui.end_row();
+                    if ui
+                        .add_enabled(
+                            app.has_captured_image(),
+                            egui::Button::new("Edit").min_size(ms),
+                        )
+                        .clicked()
+                    {
+                        app.set_page(PageType::Capture);
+                    }
+                    ui.end_row();
 
-                egui::TopBottomPanel::new(TopBottomSide::Bottom, "helper")
-                    .show_inside(ui, |ui| {
-                        egui::Grid::new("helper").min_col_width(ui.available_size().x/2.0)
-                            .show(ui, |ui|{
-                                for h in app.config.hotkeys.iter().chain(app.config.in_app_hotkeys.iter()){
-                                    ui.label(h.action.to_string());
-                                    ui.with_layout(Layout::right_to_left(Align::Max), |ui| {
-                                        ui.label(&h.key_bind);
-                                    });
-                                    ui.end_row()
-                                }
-                            });
+                    if ui.add(egui::Button::new("Settings").min_size(ms)).clicked() {
+                        app.set_page(PageType::Settings)
+                    }
+                    ui.end_row();
+
+                    ui.group(|ui| {
+                        ui.add(egui::Label::new("Delay"));
+                        ui.add(
+                            egui::Slider::new(&mut app.capture_delay_s, 0.3..=6.0)
+                                .step_by(0.1)
+                                .custom_formatter(|n, _r| format!("{:.1} s", n)),
+                        )
+                        .on_hover_text("Capture delay")
                     });
-            });
+                    ui.end_row();
+                });
+            ui.add_space(20.0);
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                ui.label(egui::RichText::new("Shortcuts").font(FontId::proportional(18.0)));
+                ui.add_space(10.0);
+                egui::Grid::new("helper")
+                    .min_col_width(80.0)
+                    .show(ui, |ui| {
+                        for h in app
+                            .config
+                            .hotkeys
+                            .iter()
+                            .chain(app.config.in_app_hotkeys.iter())
+                        {
+                            ui.label(h.action.to_string());
+                            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                                ui.label(&h.key_bind);
+                            });
+                            ui.end_row()
+                        }
+                        ui.end_row();
+                    })
+            })
         });
     });
 }

@@ -7,6 +7,7 @@ pub enum PageType {
     Settings,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SettingType {
     General,
     Keybindings,
