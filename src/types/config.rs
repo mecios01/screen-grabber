@@ -40,7 +40,7 @@ impl Display for Filename {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let dt = Utc::now();
         let mut name = self.prefix.clone();
-        if self.timestamp {
+        if self.timestamp || (self.prefix.is_empty() && self.postfix.is_empty()) {
             let timestamp = dt.format("%Y%m%d_%H%M%S");
             name.push_str(&timestamp.to_string());
         }
