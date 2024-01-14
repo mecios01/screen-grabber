@@ -10,6 +10,7 @@ use crate::types::config::{Config, Status};
 use crate::types::screen_grabber::ScreenGrabber;
 use crate::types::sync::MasterSignal;
 use crate::types::utils::{set_min_inner_size, set_theme};
+use crate::types::save_destination::SaveDestination;
 
 lazy_static! {
     static ref INVALID_CHARS_REGEX: Regex = Regex::new(r#"[\/\?%\*:|"<>\. ]"#).unwrap();
@@ -78,7 +79,6 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                     .config
                                     .default_path
                                     .clone()
-                                    .unwrap_or_default()
                                     .into_os_string()
                                     .into_string()
                                     .unwrap_or_else(|_| String::new());
@@ -87,7 +87,9 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                     if ui.button("Select folder").clicked() {
                                         let path = app.choose_folder_dialog();
-                                        app.config.default_path = Some(path);
+                                        if let Some(p) = path {
+                                            app.config.default_path = p;
+                                        }
                                     }
                                 });
                             });

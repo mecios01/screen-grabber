@@ -332,12 +332,9 @@ impl ScreenGrabber {
             )));
         self.is_capturing = true;
     }
-    pub fn choose_folder_dialog(&self) -> PathBuf {
-        let dialog = rfd::FileDialog::new().pick_folder();
-        if let Some(d) = dialog {
-            return d;
-        }
-        std::env::current_dir().unwrap_or_default()
+    pub fn choose_folder_dialog(&self) -> Option<PathBuf> {
+        println!("{:?}", self.config.default_path);
+        rfd::FileDialog::new().set_directory("/usr").pick_folder() //TODO: change
     }
     pub fn save_dialog(&self) -> Option<PathBuf> {
         let path = self.config.default_path.clone();
@@ -349,7 +346,7 @@ impl ScreenGrabber {
             .add_filter("bmp", &["bmp"]);
 
         dialog = dialog.set_file_name(format!("{}", self.config.default_filename.to_string()));
-        let p = path.unwrap_or_default();
+        let p = path;
         println!("Default path is {:?}", p);
         dialog = dialog.set_directory(&p);
 
@@ -385,7 +382,7 @@ impl ScreenGrabber {
         if !self.has_captured_image() {
             return;
         }
-        let mut path = self.config.default_path.clone().unwrap_or_default();
+        let mut path = self.config.default_path.clone();
         path.push(self.config.default_filename.to_string());
         path.set_extension("png");
         println!("{:?}", path);

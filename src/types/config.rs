@@ -7,7 +7,7 @@ use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
 
 use crate::types::keybinds::{Binding, HotKeyAction};
-use crate::types::save_destination;
+use crate::types::save_destination::SaveDestination;
 use crate::types::utils::new_hotkey_from_str;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -56,7 +56,7 @@ pub struct Config {
     pub status: Status,
     //general
     pub start_minimized: bool,
-    pub default_path: Option<PathBuf>,
+    pub default_path: PathBuf,
     pub default_filename: Filename,
 
     //keybindings
@@ -137,7 +137,7 @@ impl Default for Config {
             status: Status::default(),
             //general
             start_minimized: false,
-            default_path: save_destination::SaveDestination::default_path(),
+            default_path: SaveDestination::default_path(),
             default_filename: Filename::default(),
             //keybindings
             hotkeys: vec![Binding {
