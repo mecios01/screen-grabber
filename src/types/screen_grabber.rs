@@ -333,8 +333,7 @@ impl ScreenGrabber {
         self.is_capturing = true;
     }
     pub fn choose_folder_dialog(&self) -> Option<PathBuf> {
-        println!("{:?}", self.config.default_path);
-        rfd::FileDialog::new().set_directory("/usr").pick_folder() //TODO: change
+        rfd::FileDialog::new().pick_folder()
     }
     pub fn save_dialog(&self) -> Option<PathBuf> {
         let path = self.config.default_path.clone();
