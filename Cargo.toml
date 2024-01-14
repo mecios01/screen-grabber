@@ -25,6 +25,7 @@ egui-keybind = {version = "0.2.5", features = ["serde"]}
 arboard = "3.3.0"
 rand = "0.8.5"
 regex = "1.10.2"
+dirs = "5.0.1"
 
 [profile.release]
 strip = true

@@ -7,6 +7,7 @@ use egui_keybind::Shortcut;
 use serde::{Deserialize, Serialize};
 
 use crate::types::keybinds::{Binding, HotKeyAction};
+use crate::types::save_destination;
 use crate::types::utils::new_hotkey_from_str;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -132,10 +133,11 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            //TODO: status have to be skipped by serde (?)
             status: Status::default(),
             //general
             start_minimized: false,
-            default_path: None,
+            default_path: save_destination::SaveDestination::default_path(),
             default_filename: Filename::default(),
             //keybindings
             hotkeys: vec![Binding {

@@ -20,6 +20,7 @@ const SETTINGS_SECTIONS: [(&str, SettingType); 4] = [
     ("Appearance", SettingType::Appearance),
     ("About", SettingType::About),
 ];
+
 pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     set_min_inner_size(ctx);
     // _frame.set_decorations(true);
@@ -72,7 +73,7 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                             ui.end_row();
 
                             ui.label("Default path");
-                            ui.with_layout(Layout::left_to_right(Align::Max), |ui| {
+                            ui.horizontal(|ui|{
                                 let mut path = app
                                     .config
                                     .default_path
@@ -81,9 +82,9 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                     .into_os_string()
                                     .into_string()
                                     .unwrap_or_else(|_| String::new());
-                                ui.horizontal(|ui| {
-                                    ui.add_enabled(false, egui::TextEdit::singleline(&mut path));
-                                    ui.add_space(10.0);
+                                ui.add_enabled(false, egui::TextEdit::singleline(&mut path).desired_width(330.0));
+
+                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                     if ui.button("Select folder").clicked() {
                                         let path = app.choose_folder_dialog();
                                         app.config.default_path = Some(path);
@@ -91,6 +92,7 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                 });
                             });
                             ui.end_row();
+
                             ui.label("Default filename");
                             ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                                 {
@@ -146,72 +148,57 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                             .map(|b| b.key_bind.clone())
                             .collect();
 
-                        ui.add_space(10.0);
+                        ui.add_space(5.0);
 
-                        //Global Bindings
-                        ui.label("Global Hotkeys").highlight();
-                        ui.add_space(10.0);
-                        for g in app.config.hotkeys.iter_mut() {
-                            let prev_shortcut = g.shortcut;
-                            let res = ui.add(
-                                Keybind::new(&mut g.shortcut, g.action.to_string())
-                                    .with_text(&g.action.to_string())
-                                    .with_reset_key(Some(Key::Escape)),
-                            );
-                            if res.clicked() {
-                                app.is_binding = true;
-                            }
-                            if res.changed() {
-                                let new_str = g
-                                    .shortcut
-                                    .format(&ModifierNames::NAMES, cfg!(target_os = "macos"));
-                                if old_binds.contains(&new_str) {
-                                    g.shortcut = prev_shortcut;
-                                } else {
-                                    g.key_bind = new_str.to_string();
-                                    println!("Global Rebinded!");
+                        //Keybindings
+                        egui::Grid::new("keybinds")
+                            .min_col_width(ui.available_width() / 2.0)
+                            .striped(true)
+                            .show(ui, |ui| {
+                                for h in app.config.hotkeys.iter_mut().chain(app.config.in_app_hotkeys.iter_mut()) {
+                                    ui.label(h.action.to_string());
+                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                        let prev_shortcut = h.shortcut;
+                                        let res = ui.add(
+                                            Keybind::new(&mut h.shortcut, h.action.to_string())
+                                                // .with_text(&h.action.to_string())
+                                                .with_reset_key(Some(Key::Escape)),
+                                        );
+                                        if res.clicked() {
+                                            app.is_binding = true;
+                                        }
+                                        if res.changed() {
+                                            let new_str = h
+                                                .shortcut
+                                                .format(&ModifierNames::NAMES, cfg!(target_os = "macos"));
+                                            if old_binds.contains(&new_str) {
+                                                h.shortcut = prev_shortcut;
+                                            } else {
+                                                h.key_bind = new_str.to_string();
+                                                println!("Rebinded!");
+                                            }
+                                            app.is_binding = false;
+                                        }
+                                    });
+                                    ui.end_row();
                                 }
-                                app.is_binding = false;
-                            }
-                        }
-
-                        //In App Bindings
-                        ui.add_space(20.0);
-                        ui.label("In App Hotkeys").highlight();
-                        ui.add_space(10.0);
-                        for a in app.config.in_app_hotkeys.iter_mut() {
-                            let prev_shortcut = a.shortcut;
-                            let res = ui.add(
-                                Keybind::new(&mut a.shortcut, a.action.to_string())
-                                    .with_text(&a.action.to_string())
-                                    .with_reset_key(Some(Key::Escape)),
-                            );
-                            if res.clicked() {
-                                app.is_binding = true;
-                            }
-                            if res.changed() {
-                                let new_str = a
-                                    .shortcut
-                                    .format(&ModifierNames::NAMES, cfg!(target_os = "macos"));
-                                if old_binds.contains(&new_str) {
-                                    a.shortcut = prev_shortcut;
-                                } else {
-                                    a.key_bind = new_str.to_string();
-                                    println!("In App Rebinded!");
-                                }
-                                app.is_binding = false;
-                            }
-                        }
+                            });
                     });
                 }
                 SettingType::Appearance => {
-                    ui.add_space(10.0);
-                    ui.horizontal(|ui| {
-                        ui.label("Theme");
-                        egui::widgets::global_dark_light_mode_buttons(ui);
-                    });
+                    ui.add_space(5.0);
+                    egui::Grid::new("appearance")
+                        .min_col_width(ui.available_width() / 2.0)
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.label("Theme");
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                egui::widgets::global_dark_light_mode_buttons(ui);
+                            });
+                        });
                 }
                 SettingType::About => {
+                    ui.add_space(5.0);
                     ui.label("ABOUT");
                 }
             });

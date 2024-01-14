@@ -34,9 +34,9 @@ pub const APP_KEY: &str = "screen-grabber";
 #[derive(Deserialize, Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct ScreenGrabber {
+    //app
     #[serde(skip)]
     pub clipboard: Arc<Mutex<Clipboard>>,
-    //it should be an entire config loaded at start of the app
     #[serde(skip)]
     current_page: PageType,
     pub is_minimized: bool,
@@ -44,6 +44,8 @@ pub struct ScreenGrabber {
     pub is_saving: bool,
     #[serde(skip)]
     pub is_capturing: bool,
+    #[serde(skip)]
+    pub is_binding: bool,
     #[serde(skip)]
     pub editor: Editor,
     #[serde(skip)]
@@ -55,8 +57,6 @@ pub struct ScreenGrabber {
     pub config: Config,
     #[serde(skip)]
     pub prev_config: Config,
-    #[serde(skip)]
-    pub is_binding: bool,
     //sync stuff
     #[serde(skip)]
     pub hotkey_channel: DoubleChannel<MasterSignal, SlaveSignal>,
@@ -69,18 +69,20 @@ pub struct ScreenGrabber {
 impl Default for ScreenGrabber {
     fn default() -> Self {
         Self {
+            //app
             clipboard: Arc::new(Mutex::new(Clipboard::new().unwrap())),
             current_page: PageType::Launcher,
             is_minimized: false,
             is_saving: false,
             is_capturing: false,
+            is_binding: false,
             capture_delay_s: 0.3,
             editor: Editor::default(),
             //settings
             active_section: SettingType::General,
             config: Config::load_or_default(),
             prev_config: Config::load_or_default(),
-            is_binding: false,
+            //sync
             hotkey_channel: DoubleChannel::new(),
             save_channel: DoubleChannel::new(),
             thread_handles: vec![],
@@ -405,13 +407,11 @@ impl ScreenGrabber {
         }
         self._save(SaveDestination::Clipboard(self.clipboard.clone()));
     }
-    ///settings (to understand if this is the right place for setters of settings)
     pub fn set_active_section(&mut self, session: SettingType) {
         self.active_section = session
     }
 
     pub fn store_config(&mut self) -> Result<(), confy::ConfyError> {
-        // println!("{}", &self.config.get_example_test());
         confy::store("screen-grabber", "config", &self.config)?;
         Ok(())
     }
