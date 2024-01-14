@@ -45,32 +45,32 @@ pub fn launcher_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                                 .step_by(0.1)
                                 .custom_formatter(|n, _r| format!("{:.1} s", n)),
                         )
-                        .on_hover_text("Capture delay")
+                            .on_hover_text("Capture delay")
                     });
                     ui.end_row();
                 });
-            ui.add_space(20.0);
-            egui::CentralPanel::default().show_inside(ui, |ui| {
-                ui.label(egui::RichText::new("Shortcuts").font(FontId::proportional(18.0)));
-                ui.add_space(10.0);
-                egui::Grid::new("helper")
-                    .min_col_width(80.0)
-                    .show(ui, |ui| {
-                        for h in app
-                            .config
-                            .hotkeys
-                            .iter()
-                            .chain(app.config.in_app_hotkeys.iter())
-                        {
-                            ui.label(h.action.to_string());
-                            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                                ui.label(&h.key_bind);
-                            });
-                            ui.end_row()
-                        }
-                        ui.end_row();
-                    })
-            })
+            egui::TopBottomPanel::bottom("launcher_footer")
+                .show_separator_line(false)
+                .show_inside(ui, |ui| {
+                    ui.label(egui::RichText::new("Shortcuts").font(FontId::proportional(18.0)));
+                    ui.add_space(5.0);
+                    egui::Grid::new("helper")
+                        .show(ui, |ui| {
+                            for h in app
+                                .config
+                                .hotkeys
+                                .iter()
+                                .chain(app.config.in_app_hotkeys.iter())
+                            {
+                                ui.label(h.action.to_string());
+                                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                                    ui.label(&h.key_bind);
+                                });
+                                ui.end_row()
+                            }
+                        });
+                    ui.add_space(10.0)
+                });
         });
     });
 }

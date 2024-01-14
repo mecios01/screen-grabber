@@ -9,7 +9,7 @@ use crate::pages::types::{PageType, SettingType};
 use crate::types::config::{Config, Status};
 use crate::types::screen_grabber::ScreenGrabber;
 use crate::types::sync::MasterSignal;
-use crate::types::utils::{set_min_inner_size, set_theme};
+use crate::types::utils::{new_hotkey_from_str, set_min_inner_size, set_theme};
 
 lazy_static! {
     static ref INVALID_CHARS_REGEX: Regex = Regex::new(r#"[\/\?%\*:|"<>\. ]"#).unwrap();
@@ -154,6 +154,7 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                         //Keybindings
                         egui::Grid::new("keybinds")
                             .min_col_width(ui.available_width() / 2.0)
+                            .min_row_height(30.0)
                             .striped(true)
                             .show(ui, |ui| {
                                 for h in app.config.hotkeys.iter_mut().chain(app.config.in_app_hotkeys.iter_mut()) {
@@ -287,47 +288,35 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
 
             modal.buttons(ui, |ui| {
                 if modal.button(ui, "Confirm").clicked() {
+                    for h in app.config.hotkeys.iter_mut().chain(app.config.in_app_hotkeys.iter_mut()) {
+                        h.id = new_hotkey_from_str(&h.key_bind);
+                    }
                     match app.config.status {
                         Status::ToDiscard => {
                             app.config = app.prev_config.clone();
-                            let _ = app
-                                .hotkey_channel
-                                .sender
-                                .send(MasterSignal::SetHotkey(app.config.hotkeys.clone()));
-                            ctx.set_visuals(set_theme(app.config.is_dark));
                         }
                         Status::ToGoBack => {
                             app.config = app.prev_config.clone();
-                            let _ = app
-                                .hotkey_channel
-                                .sender
-                                .send(MasterSignal::SetHotkey(app.config.hotkeys.clone()));
-                            ctx.set_visuals(set_theme(app.config.is_dark));
                             app.set_page(PageType::Launcher);
                         }
                         Status::ToReset => {
                             app.config = Config::default();
                             app.prev_config = Config::default();
                             app.store_config().unwrap_or_default();
-                            let _ = app
-                                .hotkey_channel
-                                .sender
-                                .send(MasterSignal::SetHotkey(app.config.hotkeys.clone()));
-                            ctx.set_visuals(set_theme(app.config.is_dark));
                         }
                         Status::ToSave => {
                             app.prev_config.clone_from(&app.config);
                             app.store_config().unwrap_or_default();
-                            let _ = app
-                                .hotkey_channel
-                                .sender
-                                .send(MasterSignal::SetHotkey(app.config.hotkeys.clone()));
-                            ctx.set_visuals(set_theme(app.config.is_dark));
                             app.set_page(PageType::Launcher);
                         }
                         _ => {}
                     }
-                    app.config.status = Status::Normal
+                    let _ = app
+                        .hotkey_channel
+                        .sender
+                        .send(MasterSignal::SetHotkeys(app.config.hotkeys.clone()));
+                    ctx.set_visuals(set_theme(app.config.is_dark));
+                    app.config.status = Status::Normal;
                 }
                 if modal.caution_button(ui, "Cancel").clicked() {
                     app.config.status = Status::Normal

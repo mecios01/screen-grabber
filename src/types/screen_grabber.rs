@@ -26,7 +26,7 @@ use crate::types::rasterizer::Rasterizer;
 use crate::types::save_destination::SaveDestination;
 use crate::types::sync::{DoubleChannel, MasterSignal, SaveImageData, SlaveSignal};
 use crate::types::utils::{
-    export_color_image_to_skia_image, new_hotkey_from_str, set_min_inner_size,
+    export_color_image_to_skia_image, set_min_inner_size,
 };
 
 pub const APP_KEY: &str = "screen-grabber";
@@ -120,13 +120,11 @@ impl ScreenGrabber {
             'outer: loop {
                 match channel.receiver.try_recv() {
                     Ok(signal) => match signal {
-                        MasterSignal::SetHotkey(hotks) => {
+                        MasterSignal::SetHotkeys(hotks) => {
                             //register all new hotkeys
                             manager.unregister_all(&hks).unwrap();
                             hotkeys = hotks;
-                            for h in hotkeys.iter_mut() {
-                                h.id = new_hotkey_from_str(&h.key_bind);
-                            }
+
                             hks = hotkeys
                                 .iter()
                                 .map(|kb| HotKey::try_from(kb.key_bind.as_str()).unwrap())
