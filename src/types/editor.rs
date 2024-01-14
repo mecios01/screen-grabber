@@ -543,7 +543,7 @@ impl Editor {
         let size_points = egui::Vec2::splat(24.0);
 
         let (id, rect) = ui.allocate_space(size_points);
-        let response = ui.interact(rect, id, Sense::click());
+        let mut response = ui.interact(rect, id, Sense::click());
         let tint = if response.hovered() || self.mode == mode {
             ui.painter().rect(
                 rect,
@@ -562,7 +562,7 @@ impl Editor {
             .fit_to_exact_size(size_points);
         image.paint_at(ui, rect);
 
-        response.clone().on_hover_text(match mode {
+        response = response.on_hover_text(match mode {
             Mode::Crop => "Crop",
             Mode::DrawArrow => "Arrow",
             Mode::DrawCircle => "Circle",
