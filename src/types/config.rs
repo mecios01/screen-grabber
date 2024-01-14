@@ -133,7 +133,6 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            //TODO: status have to be skipped by serde (?)
             status: Status::default(),
             //general
             start_minimized: false,

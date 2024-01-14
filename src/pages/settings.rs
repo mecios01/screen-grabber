@@ -10,7 +10,6 @@ use crate::types::config::{Config, Status};
 use crate::types::screen_grabber::ScreenGrabber;
 use crate::types::sync::MasterSignal;
 use crate::types::utils::{set_min_inner_size, set_theme};
-use crate::types::save_destination::SaveDestination;
 
 lazy_static! {
     static ref INVALID_CHARS_REGEX: Regex = Regex::new(r#"[\/\?%\*:|"<>\. ]"#).unwrap();
@@ -74,7 +73,7 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                             ui.end_row();
 
                             ui.label("Default path");
-                            ui.horizontal(|ui|{
+                            ui.horizontal(|ui| {
                                 let mut path = app
                                     .config
                                     .default_path
@@ -201,7 +200,15 @@ pub fn settings_page(app: &mut ScreenGrabber, ctx: &egui::Context, _frame: &mut 
                 }
                 SettingType::About => {
                     ui.add_space(5.0);
-                    ui.label("ABOUT");
+                    ui.label("Github page");
+                    ui.hyperlink_to("ScreenGrabber", "https://github.com/mecios01/screen-grabber");
+
+                    ui.add_space(10.0);
+
+                    ui.label("Developers");
+                    ui.hyperlink_to("Andrea Bonvissuto", "https://github.com/mecios01");
+                    ui.hyperlink_to("Alessandro Ciullo", "https://github.com/ciullante");
+                    ui.hyperlink_to("Salvatore Giarracca", "https://github.com/Salvogiarracca");
                 }
             });
         });
